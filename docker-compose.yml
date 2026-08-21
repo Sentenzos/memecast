@@ -1,0 +1,37 @@
+name: memecast
+
+services:
+  app:
+    build:
+      context: .
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_PATH: /data/memecast.sqlite
+      MEDIA_ROOT: /data/media
+      ENABLE_DEMO_MODE: "false"
+    volumes:
+      - memecast-data:/data
+    expose:
+      - "3000"
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  memecast-data:

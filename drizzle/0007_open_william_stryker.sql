@@ -1,0 +1,1 @@
+ALTER TABLE `streamers` ADD `overlay_animation` text DEFAULT 'pop' NOT NULL;

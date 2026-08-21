@@ -1,0 +1,1 @@
+ALTER TABLE `alerts` ADD `viewer_name` text;

@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1786813019955,
+      "tag": "0000_funny_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786831260592,
+      "tag": "0001_late_namora",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787096803146,
+      "tag": "0002_mature_vermin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787098812934,
+      "tag": "0003_daily_doctor_octopus",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787103153538,
+      "tag": "0004_minor_sally_floyd",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1787103512303,
+      "tag": "0005_closed_malcolm_colcord",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787228375347,
+      "tag": "0006_sudden_groot",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787236507151,
+      "tag": "0007_open_william_stryker",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1787240172433,
+      "tag": "0008_adorable_iron_man",
+      "breakpoints": true
+    }
+  ]
+}
