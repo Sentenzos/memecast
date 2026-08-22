@@ -247,8 +247,8 @@ export function MemeSender({ slug, cooldownSeconds }: Props) {
           {[
             ["gif", "GIF"],
             ["sticker", "Stickers"],
-            ["all", "Все"],
             ["clip", "Clips"],
+            ["all", "Все"],
           ].map(([value, label]) => (
             <button
               aria-selected={activeTab === value}
