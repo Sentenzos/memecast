@@ -149,7 +149,7 @@ export async function GET(request: Request) {
 
     const rows = await getD1().prepare(`SELECT * FROM meme_assets
       WHERE provider = ? AND provider_id LIKE ?
-      ORDER BY created_at DESC LIMIT 30`)
+      ORDER BY created_at DESC`)
       .bind("custom", `${streamer.id}:%`)
       .all<MemeAssetRecord>();
 

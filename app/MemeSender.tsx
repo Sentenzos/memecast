@@ -36,14 +36,18 @@ export function MemeSender({ slug, cooldownSeconds }: Props) {
   const [message, setMessage] = useState("");
   const [viewerName, setViewerName] = useState(storedViewerName);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "gif" | "sticker" | "upload">("all");
+  const [activeTab, setActiveTab] = useState<"gif" | "sticker" | "clip">("gif");
   const [measuredRatios, setMeasuredRatios] = useState<Record<string, string>>({});
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(24);
   const [streamStatus, setStreamStatus] = useState<{ busy: boolean; viewerName?: string }>({ busy: false });
   const remaining = Math.max(0, Math.ceil((cooldownUntil - clock) / 1000));
   const cooldownLabel = remaining > 0 ? `${remaining} сек.` : `${configuredCooldown} сек.`;
-  const tabbedLibrary = libraryClips.filter((meme) => activeTab === "all" || meme.sourceType === activeTab);
+  const tabbedLibrary = libraryClips.filter((meme) => {
+    if (activeTab === "sticker") return meme.sourceType === "sticker";
+    if (activeTab === "clip") return meme.subtitle === "CLIP";
+    return meme.subtitle === "GIF" && meme.sourceType !== "sticker";
+  });
   const fullCatalog = [...tabbedLibrary];
   const catalog = fullCatalog.slice(0, visibleCount);
 
@@ -240,10 +244,9 @@ export function MemeSender({ slug, cooldownSeconds }: Props) {
         />
         <div className="catalog-tabs" role="tablist" aria-label="Типы медиа">
           {[
-            ["all", "Все"],
             ["gif", "GIF"],
             ["sticker", "Stickers"],
-            ["upload", "Uploads"],
+            ["clip", "Clips"],
           ].map(([value, label]) => (
             <button
               aria-selected={activeTab === value}

@@ -57,7 +57,6 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [assets, setAssets] = useState<MemeDefinition[]>([]);
-  const [measuredRatios, setMeasuredRatios] = useState<Record<string, string>>({});
   const [sourceMode, setSourceMode] = useState<"file" | "giphy">("file");
   const [mediaTags, setMediaTags] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -113,7 +112,6 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [demoMode]);
 
-  const publicUrl = `${origin}/s/${profile.slug}`;
   const overlayUrl = `${origin}/overlay/${profile.overlayToken}`;
 
   async function copy(value: string, label: string) {
@@ -362,24 +360,13 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
     }
   }
 
-  function assetStyle(asset: MemeDefinition) {
-    if (asset.width && asset.height) return { aspectRatio: `${asset.width} / ${asset.height}` };
-    const measured = measuredRatios[asset.id];
-    return measured ? { aspectRatio: measured } : undefined;
-  }
-
-  function rememberRatio(asset: MemeDefinition, width: number, height: number) {
-    if (!width || !height || measuredRatios[asset.id]) return;
-    setMeasuredRatios((current) => ({ ...current, [asset.id]: `${width} / ${height}` }));
-  }
-
   return (
     <main className="dashboard-shell">
       <aside className="dashboard-sidebar">
         <a className="brand dashboard-brand" href="/"><span className="brand-mark">M</span><span>MEMECAST</span></a>
         <nav aria-label="Разделы кабинета">
           <a className="nav-active" href="#links"><span>⌁</span> Обзор</a>
-          <a href="#links"><span>↗</span> Ссылки</a>
+          <a href="#links"><span>↗</span> OBS</a>
           <a href="#library"><span>▣</span> Библиотека</a>
           <a href="#history"><span>☷</span> История</a>
           <a href="#settings"><span>◉</span> Настройки</a>
@@ -396,15 +383,9 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
         {demoMode ? <div className="dashboard-alert">Демо-режим: можно проверить интерфейс, ссылки и настройку таймаута без авторизации.</div> : null}
         {status ? <div className="dashboard-alert dashboard-alert-ok" role="status">{status}</div> : null}
 
-        <section className="dashboard-grid" id="links">
-          <article className="dashboard-panel panel-public">
-            <div className="panel-label"><span>01</span> ДЛЯ ЗРИТЕЛЕЙ</div>
-            <h2>Публичная ссылка</h2><p>Отправь её в чат или добавь в описание канала.</p>
-            <div className="url-box"><code>{publicUrl || "Загрузка адреса…"}</code><button onClick={() => void copy(publicUrl, "Публичная ссылка")} disabled={!origin} type="button">Копировать</button></div>
-            <a className="text-link" href={`/s/${profile.slug}`} target="_blank" rel="noreferrer">Открыть страницу ↗</a>
-          </article>
+        <section className="dashboard-grid dashboard-grid-single" id="links">
           <article className="dashboard-panel panel-obs">
-            <div className="panel-label"><span>02</span> ДЛЯ OBS</div>
+            <div className="panel-label"><span>01</span> ДЛЯ OBS</div>
             <h2>Browser Source</h2><p>Добавь эту ссылку как источник «Браузер» размером 1920×1080.</p>
             <div className="url-box url-box-dark"><code>{overlayUrl || "Загрузка адреса…"}</code><button onClick={() => void copy(overlayUrl, "OBS-ссылка")} disabled={!origin} type="button">Копировать</button></div>
             <small className="secret-note">Не показывай эту ссылку зрителям — она управляет оверлеем.</small>
@@ -458,10 +439,10 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
                 onMouseEnter={() => setPreviewingAssetId(asset.id)}
                 onMouseLeave={() => setPreviewingAssetId((current) => current === asset.id ? null : current)}
               >
-                <div className={`asset-preview tone-${asset.tone}`} style={assetStyle(asset)}>
-                  {asset.mediaUrl && asset.mediaType === "image" ? <img src={previewingAssetId === asset.id ? asset.mediaUrl : asset.previewUrl ?? asset.mediaUrl} alt="" onLoad={(event) => rememberRatio(asset, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)} /> : null}
-                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId === asset.id ? <video src={asset.mediaUrl} muted autoPlay loop playsInline preload="metadata" onLoadedMetadata={(event) => rememberRatio(asset, event.currentTarget.videoWidth, event.currentTarget.videoHeight)} /> : null}
-                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && asset.previewUrl ? <img src={asset.previewUrl} alt="" onLoad={(event) => rememberRatio(asset, event.currentTarget.naturalWidth, event.currentTarget.naturalHeight)} /> : null}
+                <div className={`asset-preview tone-${asset.tone}`}>
+                  {asset.mediaUrl && asset.mediaType === "image" ? <img src={previewingAssetId === asset.id ? asset.mediaUrl : asset.previewUrl ?? asset.mediaUrl} alt="" /> : null}
+                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId === asset.id ? <video src={asset.mediaUrl} muted autoPlay loop playsInline preload="metadata" /> : null}
+                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && asset.previewUrl ? <img src={asset.previewUrl} alt="" /> : null}
                   {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && !asset.previewUrl ? <span>🎬</span> : null}
                   {asset.mediaType === "audio" ? <span>🔊</span> : null}
                 </div>
@@ -534,7 +515,6 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
           <div><p className="section-kicker">ЗАЩИТА ОТ СПАМА</p><h2>Настройки канала</h2><p>Один зритель не сможет отправлять мемы чаще заданного интервала.</p></div>
           <div className="settings-fields">
             <label>Ник на странице<input value={profile.displayName} onChange={(e) => setProfile({ ...profile, displayName: e.target.value.slice(0, 40) })} /></label>
-            <label>Адрес страницы<div className="slug-field"><span>/s/</span><input value={profile.slug} onChange={(e) => setProfile({ ...profile, slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 40) })} /></div></label>
             <label>Таймаут между мемами<div className="range-row"><input type="range" min="5" max="300" step="5" value={profile.cooldownSeconds} onChange={(e) => setProfile({ ...profile, cooldownSeconds: Number(e.target.value) })} /><strong>{profile.cooldownSeconds} сек.</strong></div></label>
             <label>Медиа в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.mediaDisplaySeconds} onChange={(e) => setProfile({ ...profile, mediaDisplaySeconds: Number(e.target.value) })} /><strong>{profile.mediaDisplaySeconds} сек.</strong></div></label>
             <label>Текст в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.textDisplaySeconds} onChange={(e) => setProfile({ ...profile, textDisplaySeconds: Number(e.target.value) })} /><strong>{profile.textDisplaySeconds} сек.</strong></div></label>
