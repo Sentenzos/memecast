@@ -1,5 +1,5 @@
+/* eslint-disable @next/next/no-html-link-for-pages */
 import { MemeSender } from "./MemeSender";
-import Link from "next/link";
 
 type Props = {
   slug: string;
@@ -14,10 +14,10 @@ export function PublicChannel({ slug, displayName, avatarUrl, cooldownSeconds }:
     <main className="site-shell">
       <div className="public-top">
         <header className="topbar">
-          <Link className="brand" href="/" aria-label="MemeCast — на главную">
+          <a className="brand" href="/" aria-label="MemeCast — на главную">
             <span className="brand-mark">M</span><span>MEMECAST</span>
-          </Link>
-          <Link className="login-link" href="/dashboard">Кабинет стримера <span aria-hidden="true">↗</span></Link>
+          </a>
+          <a className="login-link" href="/dashboard">Кабинет стримера <span aria-hidden="true">↗</span></a>
         </header>
 
         <section className="channel-hero" id="top">

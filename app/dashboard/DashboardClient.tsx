@@ -1,7 +1,8 @@
 "use client";
 
+/* eslint-disable @next/next/no-html-link-for-pages */
+
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import type { MemeDefinition } from "../memes";
 
 type Profile = {
@@ -420,7 +421,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
   return (
     <main className="dashboard-shell">
       <aside className="dashboard-sidebar">
-        <Link className="brand dashboard-brand" href="/"><span className="brand-mark">M</span><span>MEMECAST</span></Link>
+        <a className="brand dashboard-brand" href="/"><span className="brand-mark">M</span><span>MEMECAST</span></a>
         <nav aria-label="Разделы кабинета">
           <a className="nav-active" href="#links"><span>⌁</span> Обзор</a>
           <a href="#links"><span>↗</span> Ссылки</a>
@@ -434,7 +435,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
       <div className="dashboard-main">
         <header className="dashboard-topline">
           <div><p className="section-kicker">КАБИНЕТ СТРИМЕРА</p><h1>Привет, {profile.displayName}!</h1></div>
-          <Link className="secondary-button" href="/">На главную</Link>
+          <a className="secondary-button" href="/">На главную</a>
         </header>
 
         {demoMode ? <div className="dashboard-alert">Демо-режим: можно проверить интерфейс, ссылки и настройку таймаута без авторизации.</div> : null}
