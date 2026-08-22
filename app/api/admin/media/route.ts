@@ -2,21 +2,10 @@ import { getAdminUser } from "../../../admin-auth";
 import { ensureDatabase, getD1, getDemoStreamer, ensureStreamerForOwner, type MemeAssetRecord } from "../../../../db";
 import { deleteMediaFile, writeMediaFile } from "../../../../storage/local-media";
 import { demoModeEnabled } from "../../../demo-mode";
+import { allowedMediaType, mediaSignatureMatches } from "../../../media-validation";
+import { apiError, readJsonBody, rejectCrossOriginRequest } from "../../../request-security";
 
 export const dynamic = "force-dynamic";
-
-const allowedTypes = new Map<string, "video" | "audio" | "image">([
-  ["video/mp4", "video"],
-  ["video/webm", "video"],
-  ["video/ogg", "video"],
-  ["audio/mpeg", "audio"],
-  ["audio/mp3", "audio"],
-  ["audio/wav", "audio"],
-  ["audio/ogg", "audio"],
-  ["image/gif", "image"],
-  ["image/png", "image"],
-  ["image/jpeg", "image"],
-]);
 
 function serialize(asset: MemeAssetRecord, index: number) {
   const mediaType = asset.media_type ?? "video";
@@ -67,10 +56,10 @@ function parseStoredTags(value: string | null) {
 }
 
 function normalizeTags(value: unknown) {
-  const raw = Array.isArray(value) ? value.join(",") : String(value ?? "");
+  const raw = (Array.isArray(value) ? value.join(",") : String(value ?? "")).slice(0, 1000);
   return raw
     .split(/[,\n#]+/)
-    .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-"))
+    .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^\p{L}\p{N}_-]+/gu, "").slice(0, 32))
     .filter(Boolean)
     .slice(0, 12)
     .join(",");
@@ -101,7 +90,7 @@ function giphyStillUrl(id: string) {
 function isDirectGiphyGifUrl(value: string) {
   try {
     const url = new URL(value);
-    return isGiphyHost(url.hostname) && /\.gif$/i.test(url.pathname);
+    return url.protocol === "https:" && isGiphyHost(url.hostname) && /\.gif$/i.test(url.pathname);
   } catch {
     return false;
   }
@@ -116,7 +105,8 @@ function isGiphyHost(hostname: string) {
 
 function normalizeGiphyLink(value: string) {
   const url = value.trim();
-  const id = giphyIdFromUrl(url);
+  const parsedId = giphyIdFromUrl(url);
+  const id = parsedId && /^[a-zA-Z0-9]{1,128}$/.test(parsedId) ? parsedId : null;
   if (isDirectGiphyGifUrl(url)) {
     return {
       providerId: id ?? crypto.randomUUID(),
@@ -155,26 +145,33 @@ export async function GET(request: Request) {
 
     return Response.json({ assets: rows.results.map(serialize) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка библиотеки" }, { status: 500 });
+    return apiError(error, "Ошибка библиотеки", "admin media listing failed");
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
     await ensureDatabase();
     const streamer = await streamerForRequest(request);
     if (!streamer) return Response.json({ error: "Нужно войти" }, { status: 401 });
 
     if (request.headers.get("content-type")?.includes("application/json")) {
-      const payload = await request.json() as { url?: string; sourceType?: "gif" | "sticker"; title?: string; tags?: string[] | string };
+      const payload = await readJsonBody<{ url?: string; sourceType?: "gif" | "sticker"; title?: string; tags?: string[] | string }>(request, 8 * 1024);
       const sourceType = payload.sourceType;
-      const sourceUrl = payload.url?.trim() ?? "";
+      const sourceUrl = payload.url?.trim().slice(0, 2048) ?? "";
       if (!sourceUrl || (sourceType !== "gif" && sourceType !== "sticker")) {
         return Response.json({ error: "Укажи GIPHY-ссылку и тип: gif или sticker" }, { status: 400 });
       }
       const tags = normalizeTags(payload.tags);
       if (!tags) return Response.json({ error: "Добавь хотя бы один тег" }, { status: 400 });
-      const normalized = normalizeGiphyLink(sourceUrl);
+      let normalized: ReturnType<typeof normalizeGiphyLink>;
+      try {
+        normalized = normalizeGiphyLink(sourceUrl);
+      } catch {
+        return Response.json({ error: "Не получилось распознать безопасную GIPHY-ссылку" }, { status: 400 });
+      }
       const now = Date.now();
       const id = `custom:${crypto.randomUUID()}`;
       const title = id;
@@ -203,6 +200,9 @@ export async function POST(request: Request) {
       return Response.json({ asset: serialize(asset, 0) }, { status: 201 });
     }
 
+    if (!request.headers.get("content-type")?.toLowerCase().includes("multipart/form-data")) {
+      return Response.json({ error: "Ожидается JSON или multipart/form-data" }, { status: 415 });
+    }
     const form = await request.formData();
     const file = form.get("file");
     const poster = form.get("poster");
@@ -211,17 +211,30 @@ export async function POST(request: Request) {
     const height = positiveInt(form.get("height"));
     if (!(file instanceof File)) return Response.json({ error: "Выбери медиафайл" }, { status: 400 });
     if (!tags) return Response.json({ error: "Добавь хотя бы один тег" }, { status: 400 });
-    const mediaType = allowedTypes.get(file.type);
-    if (!mediaType) return Response.json({ error: "Поддерживаются mp4, webm, mp3, wav, ogg, gif, png и jpg" }, { status: 400 });
+    const allowedType = allowedMediaType(file.type);
+    if (!allowedType) return Response.json({ error: "Поддерживаются mp4, webm, mp3, wav, ogg, gif, png и jpg" }, { status: 400 });
+    const mediaType = allowedType.mediaType;
+    if (file.size <= 0) return Response.json({ error: "Файл пуст" }, { status: 400 });
     if (file.size > 20 * 1024 * 1024) return Response.json({ error: "Файл должен быть до 20 МБ" }, { status: 400 });
 
     const id = `custom:${crypto.randomUUID()}`;
-    const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "").toLowerCase() || "bin";
-    const storageKey = `${streamer.id}/${id}.${extension}`;
-    const bytes = await file.arrayBuffer();
+    const storageKey = `${streamer.id}/${id}.${allowedType.extension}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (!mediaSignatureMatches(bytes, file.type)) {
+      return Response.json({ error: "Содержимое файла не соответствует его формату" }, { status: 400 });
+    }
+    let posterBytes: Uint8Array | null = null;
+    if (poster instanceof File && poster.size > 0) {
+      if (poster.type !== "image/png" || poster.size > 2 * 1024 * 1024) {
+        return Response.json({ error: "Превью должно быть PNG размером до 2 МБ" }, { status: 400 });
+      }
+      posterBytes = new Uint8Array(await poster.arrayBuffer());
+      if (!mediaSignatureMatches(posterBytes, "image/png")) {
+        return Response.json({ error: "Некорректный PNG-файл превью" }, { status: 400 });
+      }
+    }
     await writeMediaFile(storageKey, bytes);
-    const hasPoster = poster instanceof File && poster.type === "image/png" && poster.size > 0;
-    if (hasPoster) await writeMediaFile(`${storageKey}.poster.png`, await poster.arrayBuffer());
+    if (posterBytes) await writeMediaFile(`${storageKey}.poster.png`, posterBytes);
 
     const now = Date.now();
     const assetTitle = id;
@@ -229,7 +242,7 @@ export async function POST(request: Request) {
     await getD1().prepare(`INSERT INTO meme_assets
       (id, provider, provider_id, title, preview_url, media_url, media_type, source_type, source_url, tags, mime_type, storage_key, size_bytes, width, height, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'upload', NULL, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind(id, "custom", `${streamer.id}:${id}`, assetTitle, hasPoster && mediaType !== "audio" ? `${mediaUrl}?preview=1` : mediaType === "audio" ? null : mediaUrl, mediaUrl, mediaType, tags || null, file.type, storageKey, file.size, width, height, now, now)
+      .bind(id, "custom", `${streamer.id}:${id}`, assetTitle, posterBytes && mediaType !== "audio" ? `${mediaUrl}?preview=1` : mediaType === "audio" ? null : mediaUrl, mediaUrl, mediaType, tags || null, allowedType.mimeType, storageKey, file.size, width, height, now, now)
       .run();
 
     const asset = await getD1().prepare("SELECT * FROM meme_assets WHERE id = ? LIMIT 1")
@@ -237,22 +250,24 @@ export async function POST(request: Request) {
     if (!asset) throw new Error("Файл загружен, но запись не найдена");
     return Response.json({ asset: serialize(asset, 0) }, { status: 201 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка загрузки" }, { status: 500 });
+    return apiError(error, "Ошибка загрузки", "admin media upload failed");
   }
 }
 
 function positiveInt(value: FormDataEntryValue | null) {
   const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? Math.round(number) : null;
+  return Number.isFinite(number) && number > 0 && number <= 10_000 ? Math.round(number) : null;
 }
 
 export async function PATCH(request: Request) {
   try {
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
     await ensureDatabase();
     const streamer = await streamerForRequest(request);
     if (!streamer) return Response.json({ error: "Нужно войти" }, { status: 401 });
 
-    const payload = await request.json() as { id?: string; tags?: string[] | string };
+    const payload = await readJsonBody<{ id?: string; tags?: string[] | string }>(request, 8 * 1024);
     const id = payload.id?.trim() ?? "";
     if (!id) return Response.json({ error: "Укажи медиа" }, { status: 400 });
     const tags = normalizeTags(payload.tags);
@@ -270,12 +285,14 @@ export async function PATCH(request: Request) {
     if (!updated) throw new Error("Медиа обновлено, но запись не найдена");
     return Response.json({ asset: serialize(updated, 0) });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка сохранения медиа" }, { status: 500 });
+    return apiError(error, "Ошибка сохранения медиа", "admin media update failed");
   }
 }
 
 export async function DELETE(request: Request) {
   try {
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
     await ensureDatabase();
     const streamer = await streamerForRequest(request);
     if (!streamer) return Response.json({ error: "Нужно войти" }, { status: 401 });
@@ -295,6 +312,6 @@ export async function DELETE(request: Request) {
     await getD1().prepare("DELETE FROM meme_assets WHERE id = ?").bind(id).run();
     return Response.json({ ok: true });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка удаления" }, { status: 500 });
+    return apiError(error, "Ошибка удаления", "admin media delete failed");
   }
 }

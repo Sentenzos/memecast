@@ -5,7 +5,7 @@ async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: handler } = await import(workerUrl.href);
-  const request = new Request(`http://localhost${path}`, { headers: { accept: "text/html" } });
+  const request = new Request(`http://localhost${path}`, { headers: { accept: "text/html", "x-real-ip": "127.0.0.1" } });
   if (typeof handler === "function") return handler(request);
   return handler.fetch(request);
 }

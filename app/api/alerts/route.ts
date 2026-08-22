@@ -1,18 +1,21 @@
 import { getMeme } from "../../memes";
 import { ensureDatabase, getD1, getStreamerBySlug, getStreamerByToken, type MemeAssetRecord } from "../../../db";
+import { apiError, clientIp, readJsonBody, rejectCrossOriginRequest } from "../../request-security";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as { streamerSlug?: string; memeId?: string; viewerKey?: string; message?: string; viewerName?: string };
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
+    const payload = await readJsonBody<{ streamerSlug?: string; memeId?: string; viewerKey?: string; message?: string; viewerName?: string }>(request, 4 * 1024);
     const slug = payload.streamerSlug?.trim() ?? "";
     const viewerKey = payload.viewerKey?.trim() ?? "";
     const memeId = payload.memeId?.trim() ?? "";
     const message = payload.message?.trim().replace(/\s+/g, " ").slice(0, 220) ?? "";
     const viewerName = payload.viewerName?.trim().replace(/\s+/g, " ").slice(0, 32) || "Зритель";
     const localMeme = memeId ? getMeme(memeId) : null;
-    if (!slug || (!memeId && !message) || memeId.length > 160 || viewerKey.length < 8 || viewerKey.length > 128) {
+    if (!/^[a-z0-9_-]{3,40}$/.test(slug) || (!memeId && !message) || memeId.length > 160 || viewerKey.length < 8 || viewerKey.length > 128) {
       return Response.json({ error: "Некорректный мем, текст или адрес стримера" }, { status: 400 });
     }
     const streamer = await getStreamerBySlug(slug);
@@ -27,8 +30,9 @@ export async function POST(request: Request) {
     if (message && containsProfanity(message)) {
       return Response.json({ error: "Сообщение не отправлено: убери мат." }, { status: 400 });
     }
-    const remoteMeme = !memeId || localMeme ? null : await getD1().prepare("SELECT * FROM meme_assets WHERE id = ? LIMIT 1")
-      .bind(memeId).first<MemeAssetRecord>();
+    const remoteMeme = !memeId || localMeme ? null : await getD1().prepare(`SELECT * FROM meme_assets
+      WHERE id = ? AND (provider = 'giphy' OR (provider = 'custom' AND provider_id LIKE ?)) LIMIT 1`)
+      .bind(memeId, `${streamer.id}:%`).first<MemeAssetRecord>();
     if (memeId && !localMeme && !remoteMeme) {
       return Response.json({ error: "Мем больше недоступен" }, { status: 404 });
     }
@@ -51,9 +55,12 @@ export async function POST(request: Request) {
       return Response.json({ error: `Подожди ещё ${retryAfter} сек.`, retryAfter, cooldownSeconds: streamer.cooldown_seconds, serverTime: now }, { status: 429 });
     }
 
+    await getD1().prepare("DELETE FROM alerts WHERE streamer_id = ? AND completed_at IS NOT NULL AND created_at < ?")
+      .bind(streamer.id, now - 30 * 24 * 60 * 60 * 1000).run();
+
     return Response.json({ ok: true, createdAt: now, cooldownSeconds: streamer.cooldown_seconds }, { status: 201 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка отправки" }, { status: 500 });
+    return apiError(error, "Ошибка отправки", "alert submission failed");
   }
 }
 
@@ -63,6 +70,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const token = url.searchParams.get("token") ?? "";
     const after = Number(url.searchParams.get("after") ?? 0);
+    if (!token || token.length > 128) return Response.json({ error: "Некорректный оверлей" }, { status: 400 });
     const streamer = await getStreamerByToken(token);
     if (!streamer) return Response.json({ error: "Оверлей не найден" }, { status: 404 });
 
@@ -148,15 +156,8 @@ export async function GET(request: Request) {
       serverTime: Date.now(),
     });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка оверлея" }, { status: 500 });
+    return apiError(error, "Ошибка оверлея", "alert polling failed");
   }
-}
-
-function clientIp(request: Request) {
-  const forwarded = request.headers.get("cf-connecting-ip") ??
-    request.headers.get("x-real-ip") ??
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || "local";
 }
 
 function containsProfanity(value: string) {

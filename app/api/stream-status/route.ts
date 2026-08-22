@@ -1,4 +1,5 @@
 import { getD1, getStreamerBySlug } from "../../../db";
+import { apiError } from "../../request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,6 @@ export async function GET(request: Request) {
 
     return Response.json({ busy: Boolean(active), viewerName: active?.viewer_name ?? undefined });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка статуса стрима" }, { status: 500 });
+    return apiError(error, "Ошибка статуса стрима", "stream status failed");
   }
 }

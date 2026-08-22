@@ -1,5 +1,5 @@
 import { ensureDatabase, getD1, type MemeAssetRecord } from "../../../../db";
-import { readMediaFile } from "../../../../storage/local-media";
+import { mediaFileSize, mediaFileStream } from "../../../../storage/local-media";
 
 export const dynamic = "force-dynamic";
 
@@ -12,36 +12,42 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!asset?.storage_key) return new Response("Not found", { status: 404 });
 
     const isPreview = new URL(request.url).searchParams.get("preview") === "1";
-    const bytes = await readMediaFile(isPreview ? `${asset.storage_key}.poster.png` : asset.storage_key);
-    if (!bytes) return new Response("Not found", { status: 404 });
+    const storageKey = isPreview ? `${asset.storage_key}.poster.png` : asset.storage_key;
+    const size = await mediaFileSize(storageKey);
+    if (size === null) return new Response("Not found", { status: 404 });
 
     const headers = new Headers();
     headers.set("content-type", isPreview ? "image/png" : asset.mime_type || "application/octet-stream");
-    headers.set("etag", `W/"${asset.updated_at}-${bytes.byteLength}"`);
+    headers.set("etag", `W/"${asset.updated_at}-${size}"`);
     headers.set("cache-control", "public, max-age=31536000, immutable");
     headers.set("accept-ranges", "bytes");
-    const range = parseRange(request.headers.get("range"), bytes.byteLength);
-    if (range) {
-      const body = bytes.subarray(range.start, range.end + 1);
-      headers.set("content-range", `bytes ${range.start}-${range.end}/${bytes.byteLength}`);
-      headers.set("content-length", String(body.byteLength));
-      return new Response(body, { status: 206, headers });
+    headers.set("x-content-type-options", "nosniff");
+    const range = parseRange(request.headers.get("range"), size);
+    if (range.kind === "invalid") {
+      headers.set("content-range", `bytes */${size}`);
+      return new Response(null, { status: 416, headers });
     }
-    headers.set("content-length", String(bytes.byteLength));
-    return new Response(bytes, { headers });
+    if (range.kind === "range") {
+      headers.set("content-range", `bytes ${range.start}-${range.end}/${size}`);
+      headers.set("content-length", String(range.end - range.start + 1));
+      return new Response(mediaFileStream(storageKey, range), { status: 206, headers });
+    }
+    headers.set("content-length", String(size));
+    return new Response(mediaFileStream(storageKey), { headers });
   } catch (error) {
-    return new Response(error instanceof Error ? error.message : "Media error", { status: 500 });
+    console.error("[memecast] media delivery failed", error);
+    return new Response("Media error", { status: 500 });
   }
 }
 
 function parseRange(value: string | null, size: number) {
-  if (!value) return null;
+  if (!value) return { kind: "none" } as const;
   const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
-  if (!match) return null;
+  if (!match || (!match[1] && !match[2])) return { kind: "invalid" } as const;
   const requestedStart = match[1] ? Number(match[1]) : null;
   const requestedEnd = match[2] ? Number(match[2]) : null;
   const start = requestedStart ?? Math.max(0, size - (requestedEnd ?? 0));
   const end = Math.min(size - 1, requestedEnd ?? size - 1);
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= size) return null;
-  return { start, end };
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= size) return { kind: "invalid" } as const;
+  return { kind: "range", start, end } as const;
 }

@@ -1,6 +1,7 @@
 import { getAdminUser } from "../../../admin-auth";
 import { ensureDatabase, ensureStreamerForOwner, getD1, getDemoStreamer, type StreamerRecord } from "../../../../db";
 import { demoModeEnabled } from "../../../demo-mode";
+import { apiError, readJsonBody, rejectCrossOriginRequest } from "../../../request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -67,20 +68,22 @@ export async function GET(request: Request) {
       })),
     });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка журнала" }, { status: 500 });
+    return apiError(error, "Ошибка журнала", "moderation history failed");
   }
 }
 
 export async function POST(request: Request) {
   try {
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
     await ensureDatabase();
     const streamer = await streamerForRequest(request);
     if (!streamer) return Response.json({ error: "Нужно войти" }, { status: 401 });
-    const payload = await request.json() as { action?: "block" | "unblock"; ipAddress?: string; viewerName?: string; id?: string };
+    const payload = await readJsonBody<{ action?: "block" | "unblock"; ipAddress?: string; viewerName?: string; id?: string }>(request, 4 * 1024);
 
     if (payload.action === "block") {
       const ipAddress = payload.ipAddress?.trim().slice(0, 180) ?? "";
-      if (!ipAddress) return Response.json({ error: "IP недоступен для этого события" }, { status: 400 });
+      if (!ipAddress || ipAddress.length > 64) return Response.json({ error: "IP недоступен для этого события" }, { status: 400 });
       const viewerName = payload.viewerName?.trim().replace(/\s+/g, " ").slice(0, 32) || null;
       await getD1().prepare(`INSERT INTO blocked_viewers (id, streamer_id, ip_address, viewer_name, created_at)
         VALUES (?, ?, ?, ?, ?)
@@ -99,7 +102,7 @@ export async function POST(request: Request) {
 
     return Response.json({ error: "Неизвестное действие" }, { status: 400 });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка блокировки" }, { status: 500 });
+    return apiError(error, "Ошибка блокировки", "moderation update failed");
   }
 }
 

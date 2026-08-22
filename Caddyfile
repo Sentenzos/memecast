@@ -1,20 +1,40 @@
 :80 {
   encode zstd gzip
 
-  request_body {
-    max_size 25MB
-  }
-
   header {
     X-Content-Type-Options nosniff
-    Referrer-Policy strict-origin-when-cross-origin
+    Referrer-Policy no-referrer
+    X-Frame-Options DENY
+    Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    X-Permitted-Cross-Domain-Policies none
+    Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://giphy.com https://*.giphy.com https://giphy.media https://*.giphy.media; media-src 'self' data: blob: https://giphy.com https://*.giphy.com https://giphy.media https://*.giphy.media; connect-src 'self'; font-src 'self' data:; worker-src 'self' blob:"
     -Server
   }
 
-  reverse_proxy app:3000 {
-    header_up Host {host}
-    header_up X-Real-IP {remote_host}
-    header_up X-Forwarded-Host {host}
-    header_up X-Forwarded-Proto {scheme}
+  @private path /login /dashboard* /api/admin/* /api/profile /api/auth/*
+  header @private Cache-Control "no-store"
+
+  @media_upload {
+    path /api/admin/media /api/admin/media-upload
+    method POST
+    header Content-Type multipart/form-data*
+  }
+
+  handle @media_upload {
+    request_body {
+      max_size 25MB
+    }
+    reverse_proxy app:3000 {
+      header_up X-Real-IP {remote_host}
+    }
+  }
+
+  handle {
+    request_body {
+      max_size 256KB
+    }
+    reverse_proxy app:3000 {
+      header_up X-Real-IP {remote_host}
+    }
   }
 }

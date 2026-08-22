@@ -1,5 +1,7 @@
-import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
+import { Readable } from "node:stream";
 
 function mediaRoot() {
   return resolve(process.env.MEDIA_ROOT || "./data/media");
@@ -26,13 +28,19 @@ export async function writeMediaFile(storageKey: string, data: ArrayBuffer | Uin
   await writeFile(target, bytes);
 }
 
-export async function readMediaFile(storageKey: string) {
+export async function mediaFileSize(storageKey: string) {
   try {
-    return await readFile(mediaPath(storageKey));
+    const info = await stat(mediaPath(storageKey));
+    return info.isFile() ? info.size : null;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
     throw error;
   }
+}
+
+export function mediaFileStream(storageKey: string, range?: { start: number; end: number }) {
+  const stream = createReadStream(mediaPath(storageKey), range);
+  return Readable.toWeb(stream) as ReadableStream<Uint8Array>;
 }
 
 export async function deleteMediaFile(storageKey: string) {

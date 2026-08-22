@@ -37,10 +37,13 @@ ADMIN_PASSWORD=change-this-password
 docker compose --env-file .env.production up -d --build
 ```
 
+При работе без домена и HTTPS оставьте `ADMIN_LOCAL_ONLY=true`: зрительская страница и OBS будут публичными, а вход в кабинет выполняется через SSH-туннель. Это защищает пароль и административную сессию от перехвата в открытом виде.
+
 ## Проверка
 
 ```bash
 npm run build
 npm test
 npm run lint
+npm audit --omit=dev
 ```

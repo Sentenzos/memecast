@@ -1,5 +1,6 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { adminAccessAllowed } from "./request-security";
 
 export type AdminUser = {
   userId: string;
@@ -27,6 +28,7 @@ export async function authenticateAdmin(login: string, password: string) {
 export async function getAdminUser(): Promise<AdminUser | null> {
   const configured = credentials();
   if (!configured) return null;
+  if (!adminAccessAllowed(await headers())) return null;
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE)?.value;
   return session ? verifySession(session, configured) : null;
@@ -88,7 +90,12 @@ async function verifySession(value: string, configured: { login: string; passwor
 function credentials() {
   const login = process.env.ADMIN_LOGIN?.trim();
   const password = process.env.ADMIN_PASSWORD;
-  if (login && password) return { login, password };
+  if (login && password) {
+    if (process.env.NODE_ENV === "production" && (login.length > 128 || password.length < 16 || password === login || /replace-with|change-this|password/i.test(password))) {
+      return null;
+    }
+    return { login, password };
+  }
   if (process.env.NODE_ENV !== "production") return { login: "admin", password: "admin" };
   return null;
 }

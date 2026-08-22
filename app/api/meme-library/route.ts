@@ -19,6 +19,8 @@ type GiphyClip = {
 };
 
 const tones = ["violet", "lime", "orange", "blue", "pink", "yellow"];
+const GIPHY_REFRESH_MS = 5 * 60 * 1000;
+let nextGiphyRefreshAt = 0;
 
 function apiKey() {
   return process.env.GIPHY_API_KEY;
@@ -174,10 +176,15 @@ export async function GET(request: Request) {
       });
     }
 
-    const query = url.searchParams.get("q")?.trim().slice(0, 50) || "funny meme reaction";
+    const stored = await storedClips(custom.length);
+    if (Date.now() < nextGiphyRefreshAt) {
+      return Response.json({ provider: "giphy-clips", configured: true, clips: [...custom, ...stored] });
+    }
+    nextGiphyRefreshAt = Date.now() + GIPHY_REFRESH_MS;
+
     const endpoint = new URL("https://api.giphy.com/v1/clips/search");
     endpoint.searchParams.set("api_key", key);
-    endpoint.searchParams.set("q", query);
+    endpoint.searchParams.set("q", "funny meme reaction");
     endpoint.searchParams.set("limit", "6");
     endpoint.searchParams.set("rating", "pg");
 
@@ -254,7 +261,13 @@ export async function GET(request: Request) {
       provider: "giphy-clips",
       configured: true,
       clips,
-      message: error instanceof Error ? error.message : "GIPHY Clips временно недоступен",
+      message: publicGiphyError(error),
     }, { status: clips.length ? 200 : 502 });
   }
+}
+
+function publicGiphyError(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  if (message.startsWith("Ключ найден") || message.startsWith("GIPHY отклонил")) return message;
+  return "GIPHY Clips временно недоступен";
 }

@@ -1,7 +1,9 @@
 import { clearAdminSession } from "../../../admin-auth";
-import { publicOrigin } from "../../../public-origin";
+import { rejectCrossOriginRequest } from "../../../request-security";
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
+  const rejected = rejectCrossOriginRequest(request);
+  if (rejected) return rejected;
   await clearAdminSession();
-  return Response.redirect(new URL("/", publicOrigin(request)));
+  return new Response(null, { status: 303, headers: { location: "/", "cache-control": "no-store" } });
 }

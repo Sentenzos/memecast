@@ -51,9 +51,9 @@ function isValidGiphyUrl(value: string) {
   }
 }
 
-export function DashboardClient({ initialProfile, login, demoMode = false }: { initialProfile: Profile; login: string; demoMode?: boolean }) {
+export function DashboardClient({ initialProfile, login, demoMode = false, publicOrigin = "" }: { initialProfile: Profile; login: string; demoMode?: boolean; publicOrigin?: string }) {
   const [profile, setProfile] = useState(initialProfile);
-  const [origin, setOrigin] = useState("");
+  const [origin, setOrigin] = useState(publicOrigin);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [assets, setAssets] = useState<MemeDefinition[]>([]);
@@ -73,9 +73,10 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
   const [moderationLoading, setModerationLoading] = useState(true);
   const [moderationAction, setModerationAction] = useState<string | null>(null);
   useEffect(() => {
+    if (publicOrigin) return;
     const frame = window.requestAnimationFrame(() => setOrigin(window.location.origin));
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [publicOrigin]);
 
   useEffect(() => {
     let cancelled = false;

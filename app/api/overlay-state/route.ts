@@ -1,13 +1,16 @@
 import { getD1, getStreamerByToken } from "../../../db";
+import { apiError, readJsonBody, rejectCrossOriginRequest } from "../../request-security";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const payload = await request.json() as { token?: string; alertId?: string; state?: "started" | "completed" };
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
+    const payload = await readJsonBody<{ token?: string; alertId?: string; state?: "started" | "completed" }>(request, 2 * 1024);
     const token = payload.token?.trim() ?? "";
     const alertId = payload.alertId?.trim() ?? "";
-    if (!token || !alertId || (payload.state !== "started" && payload.state !== "completed")) {
+    if (!token || token.length > 128 || !alertId || alertId.length > 128 || (payload.state !== "started" && payload.state !== "completed")) {
       return Response.json({ error: "Некорректное состояние оверлея" }, { status: 400 });
     }
 
@@ -28,6 +31,6 @@ export async function POST(request: Request) {
     }
     return Response.json({ ok: true });
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Ошибка состояния оверлея" }, { status: 500 });
+    return apiError(error, "Ошибка состояния оверлея", "overlay state update failed");
   }
 }

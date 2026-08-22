@@ -1,5 +1,6 @@
 import { getDemoStreamer, updateStreamerSettings } from "../../../db";
 import { demoModeEnabled } from "../../demo-mode";
+import { apiError, readJsonBody, rejectCrossOriginRequest } from "../../request-security";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     if (!isLocalRequest(request)) return Response.json({ error: "Недоступно" }, { status: 403 });
-    const payload = await request.json() as { displayName?: string; slug?: string; cooldownSeconds?: number; mediaDisplaySeconds?: number; textDisplaySeconds?: number; overlayPosition?: string; overlayMediaWidth?: number; overlayMediaHeight?: number; overlayAnimation?: string };
+    const rejected = rejectCrossOriginRequest(request);
+    if (rejected) return rejected;
+    const payload = await readJsonBody<{ displayName?: string; slug?: string; cooldownSeconds?: number; mediaDisplaySeconds?: number; textDisplaySeconds?: number; overlayPosition?: string; overlayMediaWidth?: number; overlayMediaHeight?: number; overlayAnimation?: string }>(request, 8 * 1024);
     const displayName = payload.displayName?.trim().slice(0, 40) ?? "";
     const slug = payload.slug?.trim() ?? "";
     const cooldownSeconds = Math.round(Number(payload.cooldownSeconds));
@@ -49,8 +52,8 @@ export async function POST(request: Request) {
     if (!streamer) throw new Error("Профиль не найден");
     return Response.json({ profile: serialize(streamer) });
   } catch (error) {
-    const message = error instanceof Error && error.message.includes("UNIQUE") ? "Этот адрес уже занят" : error instanceof Error ? error.message : "Ошибка сохранения";
-    return Response.json({ error: message }, { status: 500 });
+    if (error instanceof Error && error.message.includes("UNIQUE")) return Response.json({ error: "Этот адрес уже занят" }, { status: 409 });
+    return apiError(error, "Ошибка сохранения", "demo profile update failed");
   }
 }
 
