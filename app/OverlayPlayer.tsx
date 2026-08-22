@@ -2,7 +2,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { MemeDefinition } from "./memes";
-import { playMemeSound } from "./sound";
+import { playMemeSound, playMessageSound } from "./sound";
 
 type Alert = { id: string; createdAt: number; message?: string; viewerName?: string; meme: MemeDefinition };
 type OverlaySettings = {
@@ -99,6 +99,7 @@ export function OverlayPlayer({ token }: { token: string }) {
       const isSilentImage = alert.meme.mediaUrl && alert.meme.mediaType === "image";
       if (isSilentImage) {
         const display = wait(settings.mediaDisplaySeconds * 1000);
+        if (hasMessageSound(alert.meme)) await playMessageSound();
         if (alert.message) {
           await Promise.all([display, Promise.race([speak(alert.message), wait(settings.textDisplaySeconds * 1000)])]);
         } else {
@@ -180,6 +181,10 @@ export function OverlayPlayer({ token }: { token: string }) {
       ) : null}
     </main>
   );
+}
+
+function hasMessageSound(meme: MemeDefinition) {
+  return meme.sourceType === "gif" || meme.sourceType === "sticker" || meme.subtitle === "GIF" || meme.subtitle === "STICKER";
 }
 
 async function markAlertState(token: string, alertId: string, state: "started" | "completed") {

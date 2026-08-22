@@ -1,10 +1,52 @@
 import type { MemeDefinition } from "./memes";
 
+function audioContextClass() {
+  if (typeof window === "undefined") return undefined;
+  return window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+}
+
+export function playMessageSound() {
+  const AudioContextClass = audioContextClass();
+  if (!AudioContextClass) return Promise.resolve();
+
+  let context: AudioContext;
+  try {
+    context = new AudioContextClass();
+  } catch {
+    return Promise.resolve();
+  }
+  const now = context.currentTime;
+  const tones: Array<[number, number]> = [[660, 0], [880, .13]];
+
+  tones.forEach(([frequency, delay]) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const start = now + delay;
+    const end = start + .14;
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(.0001, start);
+    gain.gain.exponentialRampToValueAtTime(.11, start + .018);
+    gain.gain.exponentialRampToValueAtTime(.0001, end);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(end);
+  });
+
+  void context.resume().catch(() => undefined);
+  return new Promise<void>((resolve) => {
+    window.setTimeout(() => {
+      void context.close().catch(() => undefined);
+      resolve();
+    }, 340);
+  });
+}
+
 export function playMemeSound(kind: MemeDefinition["sound"]) {
   if (kind === "video") return;
-  if (typeof window === "undefined") return;
-  const AudioContextClass = window.AudioContext ||
-    (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioContextClass = audioContextClass();
   if (!AudioContextClass) return;
 
   const context = new AudioContextClass();
