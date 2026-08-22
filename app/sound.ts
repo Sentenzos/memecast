@@ -6,41 +6,82 @@ function audioContextClass() {
     (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 }
 
-export function playMessageSound() {
-  const AudioContextClass = audioContextClass();
-  if (!AudioContextClass) return Promise.resolve();
+let messageSoundUrl: string | null = null;
+let messageAudio: HTMLAudioElement | null = null;
 
-  let context: AudioContext;
-  try {
-    context = new AudioContextClass();
-  } catch {
-    return Promise.resolve();
+function createMessageSoundUrl() {
+  if (messageSoundUrl) return messageSoundUrl;
+  const sampleRate = 24000;
+  const duration = .42;
+  const samples = Math.ceil(sampleRate * duration);
+  const buffer = new ArrayBuffer(44 + samples * 2);
+  const view = new DataView(buffer);
+  const writeText = (offset: number, value: string) => {
+    for (let index = 0; index < value.length; index += 1) view.setUint8(offset + index, value.charCodeAt(index));
+  };
+
+  writeText(0, "RIFF");
+  view.setUint32(4, 36 + samples * 2, true);
+  writeText(8, "WAVE");
+  writeText(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeText(36, "data");
+  view.setUint32(40, samples * 2, true);
+
+  const tone = (time: number, start: number, length: number, frequency: number) => {
+    const local = time - start;
+    if (local < 0 || local > length) return 0;
+    const attack = Math.min(1, local / .012);
+    const release = Math.min(1, (length - local) / .075);
+    return Math.sin(Math.PI * 2 * frequency * local) * attack * release;
+  };
+  for (let index = 0; index < samples; index += 1) {
+    const time = index / sampleRate;
+    const value = (tone(time, 0, .2, 659.25) + tone(time, .15, .24, 880)) * .38;
+    view.setInt16(44 + index * 2, Math.round(Math.max(-1, Math.min(1, value)) * 32767), true);
   }
-  const now = context.currentTime;
-  const tones: Array<[number, number]> = [[660, 0], [880, .13]];
 
-  tones.forEach(([frequency, delay]) => {
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const start = now + delay;
-    const end = start + .14;
-    oscillator.type = "sine";
-    oscillator.frequency.setValueAtTime(frequency, start);
-    gain.gain.setValueAtTime(.0001, start);
-    gain.gain.exponentialRampToValueAtTime(.11, start + .018);
-    gain.gain.exponentialRampToValueAtTime(.0001, end);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(start);
-    oscillator.stop(end);
-  });
+  messageSoundUrl = URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
+  return messageSoundUrl;
+}
 
-  void context.resume().catch(() => undefined);
+export function preloadMessageSound() {
+  if (typeof window === "undefined") return;
+  if (!messageAudio) {
+    messageAudio = new Audio(createMessageSoundUrl());
+    messageAudio.preload = "auto";
+    messageAudio.load();
+  }
+}
+
+export function playMessageSound() {
+  if (typeof window === "undefined") return Promise.resolve();
+  preloadMessageSound();
+  const audio = messageAudio;
+  if (!audio) return Promise.resolve();
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = .9;
   return new Promise<void>((resolve) => {
-    window.setTimeout(() => {
-      void context.close().catch(() => undefined);
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timer);
+      audio.removeEventListener("ended", finish);
+      audio.removeEventListener("error", finish);
       resolve();
-    }, 340);
+    };
+    audio.addEventListener("ended", finish, { once: true });
+    audio.addEventListener("error", finish, { once: true });
+    const timer = window.setTimeout(finish, 1200);
+    void audio.play().catch(finish);
   });
 }
 

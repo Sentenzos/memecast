@@ -2,7 +2,7 @@
 
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { MemeDefinition } from "./memes";
-import { playMemeSound, playMessageSound } from "./sound";
+import { playMemeSound, playMessageSound, preloadMessageSound } from "./sound";
 
 type Alert = { id: string; createdAt: number; message?: string; viewerName?: string; meme: MemeDefinition };
 type OverlaySettings = {
@@ -71,6 +71,7 @@ export function OverlayPlayer({ token }: { token: string }) {
 
   useEffect(() => {
     window.speechSynthesis?.getVoices();
+    preloadMessageSound();
   }, []);
 
   useEffect(() => {
