@@ -6,12 +6,35 @@ import type { MemeDefinition } from "./memes";
 type Props = { slug: string; cooldownSeconds: number };
 type Notice = { kind: "ok" | "error"; text: string } | null;
 
+function createViewerKey() {
+  const cryptoApi = window.crypto;
+  if (typeof cryptoApi?.randomUUID === "function") return cryptoApi.randomUUID();
+
+  if (typeof cryptoApi?.getRandomValues === "function") {
+    const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+  }
+
+  return `viewer-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+}
+
 function getViewerKey() {
   const storageKey = "memecast-viewer-key";
-  const current = window.localStorage.getItem(storageKey);
-  if (current) return current;
-  const created = window.crypto.randomUUID();
-  window.localStorage.setItem(storageKey, created);
+  try {
+    const current = window.localStorage.getItem(storageKey);
+    if (current) return current;
+  } catch {
+    return createViewerKey();
+  }
+  const created = createViewerKey();
+  try {
+    window.localStorage.setItem(storageKey, created);
+  } catch {
+    // Some embedded browsers block localStorage. A temporary key still allows the alert to be sent.
+  }
   return created;
 }
 
