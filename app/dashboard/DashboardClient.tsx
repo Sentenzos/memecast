@@ -432,25 +432,27 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
             </div>
           </div>
           <div className="asset-strip">
-            {assets.length ? assets.map((asset) => (
-              <article
-                className="asset-card"
-                key={asset.id}
-                onMouseEnter={() => setPreviewingAssetId(asset.id)}
-                onMouseLeave={() => setPreviewingAssetId((current) => current === asset.id ? null : current)}
-              >
-                <div className={`asset-preview tone-${asset.tone}`}>
-                  {asset.mediaUrl && asset.mediaType === "image" ? <img src={previewingAssetId === asset.id ? asset.mediaUrl : asset.previewUrl ?? asset.mediaUrl} alt="" /> : null}
-                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId === asset.id ? <video src={asset.mediaUrl} muted autoPlay loop playsInline preload="metadata" /> : null}
-                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && asset.previewUrl ? <img src={asset.previewUrl} alt="" /> : null}
-                  {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && !asset.previewUrl ? <span>🎬</span> : null}
-                  {asset.mediaType === "audio" ? <span>🔊</span> : null}
-                </div>
-                <strong>{asset.tags?.length ? asset.tags.map((tag) => `#${tag}`).join(" ") : "Без тегов"}</strong>
-                <small>{asset.subtitle}</small>
-                <button onClick={() => void deleteAsset(asset.id)} type="button">Удалить</button>
-              </article>
-            )) : <div className="empty-library">Пока пусто</div>}
+            <div className="asset-grid">
+              {assets.length ? assets.map((asset) => (
+                <article
+                  className="asset-card"
+                  key={asset.id}
+                  onMouseEnter={() => setPreviewingAssetId(asset.id)}
+                  onMouseLeave={() => setPreviewingAssetId((current) => current === asset.id ? null : current)}
+                >
+                  <div className={`asset-preview tone-${asset.tone}`}>
+                    {asset.mediaUrl && asset.mediaType === "image" ? <img src={previewingAssetId === asset.id ? asset.mediaUrl : asset.previewUrl ?? asset.mediaUrl} alt="" /> : null}
+                    {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId === asset.id ? <video src={asset.mediaUrl} muted autoPlay loop playsInline preload="metadata" /> : null}
+                    {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && asset.previewUrl ? <img src={asset.previewUrl} alt="" /> : null}
+                    {asset.mediaUrl && asset.mediaType === "video" && previewingAssetId !== asset.id && !asset.previewUrl ? <span>🎬</span> : null}
+                    {asset.mediaType === "audio" ? <span>🔊</span> : null}
+                  </div>
+                  <strong>{asset.tags?.length ? asset.tags.map((tag) => `#${tag}`).join(" ") : "Без тегов"}</strong>
+                  <small>{asset.subtitle}</small>
+                  <button onClick={() => void deleteAsset(asset.id)} type="button">Удалить</button>
+                </article>
+              )) : <div className="empty-library">Пока пусто</div>}
+            </div>
           </div>
         </section>
 

@@ -36,7 +36,7 @@ export function MemeSender({ slug, cooldownSeconds }: Props) {
   const [message, setMessage] = useState("");
   const [viewerName, setViewerName] = useState(storedViewerName);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<"gif" | "sticker" | "clip">("gif");
+  const [activeTab, setActiveTab] = useState<"gif" | "sticker" | "all" | "clip">("gif");
   const [measuredRatios, setMeasuredRatios] = useState<Record<string, string>>({});
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [visibleCount, setVisibleCount] = useState(24);
@@ -44,6 +44,7 @@ export function MemeSender({ slug, cooldownSeconds }: Props) {
   const remaining = Math.max(0, Math.ceil((cooldownUntil - clock) / 1000));
   const cooldownLabel = remaining > 0 ? `${remaining} сек.` : `${configuredCooldown} сек.`;
   const tabbedLibrary = libraryClips.filter((meme) => {
+    if (activeTab === "all") return true;
     if (activeTab === "sticker") return meme.sourceType === "sticker";
     if (activeTab === "clip") return meme.subtitle === "CLIP";
     return meme.subtitle === "GIF" && meme.sourceType !== "sticker";
@@ -246,6 +247,7 @@ export function MemeSender({ slug, cooldownSeconds }: Props) {
           {[
             ["gif", "GIF"],
             ["sticker", "Stickers"],
+            ["all", "Все"],
             ["clip", "Clips"],
           ].map(([value, label]) => (
             <button
