@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-html-link-for-pages */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { MemeDefinition } from "../memes";
 
 type Profile = {
@@ -60,7 +60,6 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
   const [measuredRatios, setMeasuredRatios] = useState<Record<string, string>>({});
   const [sourceMode, setSourceMode] = useState<"file" | "giphy">("file");
   const [mediaTags, setMediaTags] = useState("");
-  const [editingAsset, setEditingAsset] = useState<MemeDefinition | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadDimensions, setUploadDimensions] = useState<{ width: number | null; height: number | null }>({ width: null, height: null });
   const [uploading, setUploading] = useState(false);
@@ -68,14 +67,12 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
   const [uploadPhase, setUploadPhase] = useState("");
   const [giphyUrl, setGiphyUrl] = useState("");
   const [giphyType, setGiphyType] = useState<"gif" | "sticker">("gif");
-  const [importedGiphyKey, setImportedGiphyKey] = useState("");
   const [addingGiphy, setAddingGiphy] = useState(false);
   const [previewingAssetId, setPreviewingAssetId] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [blockedViewers, setBlockedViewers] = useState<BlockedViewer[]>([]);
   const [moderationLoading, setModerationLoading] = useState(true);
   const [moderationAction, setModerationAction] = useState<string | null>(null);
-  const giphyRequestId = useRef(0);
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setOrigin(window.location.origin));
     return () => window.cancelAnimationFrame(frame);
@@ -115,47 +112,6 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
     const timer = window.setInterval(() => void load(), 7000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [demoMode]);
-
-  useEffect(() => {
-    const requestId = ++giphyRequestId.current;
-    if (sourceMode !== "giphy") return;
-    if (editingAsset) return;
-    const cleanUrl = giphyUrl.trim();
-    const cleanTags = mediaTags.trim();
-    const importKey = `${giphyType}:${cleanUrl}:${cleanTags}`;
-    if (!isValidGiphyUrl(cleanUrl) || !cleanTags || importedGiphyKey === importKey) return;
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setAddingGiphy(true);
-      setStatus("");
-      try {
-        const response = await fetch(`/api/admin/media${demoMode ? "?demo=1" : ""}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ url: cleanUrl, sourceType: giphyType, tags: cleanTags }),
-          signal: controller.signal,
-        });
-        const result = await response.json() as { asset?: MemeDefinition; error?: string; existing?: boolean };
-        if (requestId !== giphyRequestId.current) return;
-        if (!response.ok || !result.asset) throw new Error(result.error ?? "Не получилось добавить GIPHY");
-        setAssets((current) => [result.asset as MemeDefinition, ...current.filter((asset) => asset.id !== result.asset?.id)]);
-        setEditingAsset(result.asset);
-        setImportedGiphyKey(importKey);
-        setStatus(result.existing ? "Этот GIPHY уже есть в библиотеке — теги обновлены" : "GIPHY добавлен в библиотеку");
-      } catch (error) {
-        if (requestId === giphyRequestId.current && !(error instanceof DOMException && error.name === "AbortError")) {
-          setStatus(error instanceof Error ? error.message : "Не получилось добавить GIPHY");
-        }
-      } finally {
-        if (requestId === giphyRequestId.current) setAddingGiphy(false);
-      }
-    }, 700);
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [demoMode, editingAsset, giphyType, giphyUrl, importedGiphyKey, mediaTags, sourceMode]);
 
   const publicUrl = `${origin}/s/${profile.slug}`;
   const overlayUrl = `${origin}/overlay/${profile.overlayToken}`;
@@ -252,7 +208,6 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
       setUploadPhase("Готово");
       setAssets((current) => [result.asset as MemeDefinition, ...current]);
       setMediaTags("");
-      setEditingAsset(null);
       setUploadFile(null);
       setUploadDimensions({ width: null, height: null });
       setStatus("Файл добавлен в библиотеку");
@@ -285,29 +240,35 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
     request.send(form);
   }
 
-  async function saveMediaDetails() {
-    if (!editingAsset) {
-      setStatus("Сначала добавь медиа");
+  async function addGiphy() {
+    const cleanUrl = giphyUrl.trim();
+    const cleanTags = mediaTags.trim();
+    if (!isValidGiphyUrl(cleanUrl)) {
+      setStatus("Вставь корректную ссылку с сайта GIPHY");
       return;
     }
-    if (!mediaTags.trim()) {
+    if (!cleanTags) {
       setStatus("Добавь хотя бы один тег");
       return;
     }
+    setAddingGiphy(true);
     setStatus("");
     try {
       const response = await fetch(`/api/admin/media${demoMode ? "?demo=1" : ""}`, {
-        method: "PATCH",
+        method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: editingAsset.id, tags: mediaTags }),
+        body: JSON.stringify({ url: cleanUrl, sourceType: giphyType, tags: cleanTags }),
       });
-      const result = await response.json() as { asset?: MemeDefinition; error?: string };
-      if (!response.ok || !result.asset) throw new Error(result.error ?? "Не получилось сохранить медиа");
-      setAssets((current) => current.map((asset) => asset.id === result.asset?.id ? result.asset as MemeDefinition : asset));
-      setEditingAsset(result.asset);
-      setStatus("Теги сохранены");
+      const result = await response.json() as { asset?: MemeDefinition; error?: string; existing?: boolean };
+      if (!response.ok || !result.asset) throw new Error(result.error ?? "Не получилось добавить GIPHY");
+      setAssets((current) => [result.asset as MemeDefinition, ...current.filter((asset) => asset.id !== result.asset?.id)]);
+      setGiphyUrl("");
+      setMediaTags("");
+      setStatus(result.existing ? "Этот GIPHY уже был в библиотеке — теги обновлены" : "GIPHY добавлен в библиотеку");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Не получилось сохранить медиа");
+      setStatus(error instanceof Error ? error.message : "Не получилось добавить GIPHY");
+    } finally {
+      setAddingGiphy(false);
     }
   }
 
@@ -318,14 +279,12 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
     setUploadDimensions({ width: null, height: null });
     setUploadProgress(0);
     setUploadPhase("");
-    setEditingAsset(null);
     setMediaTags("");
     if (mode === "file") setGiphyUrl("");
   }
 
   async function handleFileChange(file: File | null) {
     setUploadFile(file);
-    setEditingAsset(null);
     setUploadDimensions({ width: null, height: null });
     setUploadProgress(0);
     setUploadPhase("");
@@ -336,17 +295,13 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
   }
 
   function handleGiphyUrlChange(value: string) {
-    giphyRequestId.current += 1;
     setGiphyUrl(value);
-    setImportedGiphyKey("");
-    setEditingAsset(null);
-    setAddingGiphy(false);
     try {
       const url = new URL(value.trim());
       if (url.pathname.includes("/stickers/")) setGiphyType("sticker");
       if (url.pathname.includes("/gifs/")) setGiphyType("gif");
     } catch {
-      // The auto-import effect will wait until the value becomes a full URL.
+      // Validation runs when the administrator clicks the add button.
     }
   }
 
@@ -472,19 +427,19 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
               {sourceMode === "file" ? (
                 <label>Файл<input id="media-file" type="file" accept="video/mp4,video/webm,video/ogg,audio/mpeg,audio/mp3,audio/wav,audio/ogg,image/gif,image/png,image/jpeg" onChange={(event) => void handleFileChange(event.target.files?.[0] ?? null)} /></label>
               ) : (
-                <label>Ссылка GIPHY<input value={giphyUrl} onChange={(event) => handleGiphyUrlChange(event.target.value)} placeholder="https://giphy.com/gifs/..." /></label>
+                <label>Ссылка GIPHY<input disabled={addingGiphy} value={giphyUrl} onChange={(event) => handleGiphyUrlChange(event.target.value)} placeholder="https://giphy.com/gifs/..." /></label>
               )}
             </div>
             <div className="upload-box">
               <h3>2. Тип и описание</h3>
               {sourceMode === "giphy" ? (
-                <label>Тип<select value={giphyType} onChange={(event) => { setGiphyType(event.target.value as "gif" | "sticker"); setImportedGiphyKey(""); }}><option value="gif">GIF</option><option value="sticker">Sticker</option></select></label>
+                <label>Тип<select disabled={addingGiphy} value={giphyType} onChange={(event) => setGiphyType(event.target.value as "gif" | "sticker")}><option value="gif">GIF</option><option value="sticker">Sticker</option></select></label>
               ) : <div className="derived-type">Тип определится по файлу</div>}
-              <label>Теги<input disabled={sourceMode === "file" && !uploadFile} value={mediaTags} onChange={(event) => { setMediaTags(event.target.value.slice(0, 160)); setImportedGiphyKey(""); }} placeholder="rage, laugh, victory" /><small>Минимум один тег обязателен.</small></label>
+              <label>Теги<input disabled={addingGiphy || (sourceMode === "file" && !uploadFile)} value={mediaTags} onChange={(event) => setMediaTags(event.target.value.slice(0, 160))} placeholder="rage, laugh, victory" /><small>Минимум один тег обязателен.</small></label>
               {sourceMode === "file" ? (
                 <button className="primary-button" disabled={uploading || !uploadFile} onClick={() => void uploadMedia()} type="button">{uploading ? "Загружаем…" : "Добавить в библиотеку"}</button>
               ) : (
-                <button className="primary-button" disabled={addingGiphy || !editingAsset || !mediaTags.trim()} onClick={() => void saveMediaDetails()} type="button">{addingGiphy ? "Загружаем GIPHY…" : "Сохранить теги"}</button>
+                <button className="primary-button" disabled={addingGiphy || !giphyUrl.trim() || !mediaTags.trim()} onClick={() => void addGiphy()} type="button">{addingGiphy ? "Добавляем GIPHY…" : "Добавить в библиотеку"}</button>
               )}
               {sourceMode === "file" && (uploading || uploadProgress > 0) ? (
                 <div className="upload-progress" role="progressbar" aria-label="Загрузка файла" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress}>
