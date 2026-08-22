@@ -434,7 +434,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false }: { i
       <div className="dashboard-main">
         <header className="dashboard-topline">
           <div><p className="section-kicker">КАБИНЕТ СТРИМЕРА</p><h1>Привет, {profile.displayName}!</h1></div>
-          <a className="secondary-button" href={demoMode ? "/login" : "/api/auth/signout"}>Выйти</a>
+          <Link className="secondary-button" href="/">На главную</Link>
         </header>
 
         {demoMode ? <div className="dashboard-alert">Демо-режим: можно проверить интерфейс, ссылки и настройку таймаута без авторизации.</div> : null}

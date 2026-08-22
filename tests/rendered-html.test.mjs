@@ -16,7 +16,8 @@ test("renders the MemeCast public channel", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
   assert.match(html, /<title>MemeCast — мемы прямо на стрим<\/title>/i);
-  assert.match(html, /Демо-стример/);
+  assert.doesNotMatch(html, /Демо-стример/);
+  assert.match(html, /class="brand" href="\/"/);
   assert.match(html, /Имя в эфире/);
   assert.match(html, /Таймаут/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|react-loading-skeleton/);

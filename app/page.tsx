@@ -1,20 +1,20 @@
 import { PublicChannel } from "./PublicChannel";
-import { demoStreamer } from "./memes";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
+  const fallbackName = process.env.ADMIN_LOGIN?.trim() || "Стример";
   let streamer = {
-    slug: demoStreamer.slug,
-    display_name: demoStreamer.displayName,
-    avatar_url: demoStreamer.avatarUrl,
-    cooldown_seconds: demoStreamer.cooldownSeconds,
+    slug: "streamer",
+    display_name: fallbackName,
+    avatar_url: null as string | null,
+    cooldown_seconds: 30,
   };
   try {
-    const { getDemoStreamer } = await import("../db");
-    streamer = await getDemoStreamer();
+    const { ensureStreamerForOwner } = await import("../db");
+    streamer = await ensureStreamerForOwner("env-admin", fallbackName);
   } catch {
-    // Static fallback keeps the public demo available when D1 is unavailable.
+    // The public page still renders if persistent storage is temporarily unavailable.
   }
   return (
     <PublicChannel

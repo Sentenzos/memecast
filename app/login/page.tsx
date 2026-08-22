@@ -1,9 +1,12 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import Link from "next/link";
+import { getAdminUser } from "../admin-auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; return_to?: string }> }) {
+  if (await getAdminUser()) redirect("/dashboard");
   const host = (await headers()).get("host") ?? "";
   const isLocal = /^(127\.0\.0\.1|localhost)(:\d+)?$/i.test(host);
   const { error, return_to: returnTo } = await searchParams;
