@@ -29,6 +29,9 @@ export type StreamerRecord = {
 export type OverlayPosition =
   | "bottom-right"
   | "bottom-left"
+  | "bottom-center"
+  | "center-right"
+  | "center-left"
   | "top-right"
   | "top-left"
   | "center";

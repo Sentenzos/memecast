@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const overlayTextFontSize = Math.round(Number(payload.overlayTextFontSize));
     const overlayAnimation = normalizeOverlayAnimation(payload.overlayAnimation);
     const ttsVoice = normalizeTtsVoicePreset(payload.ttsVoice);
-    if (!displayName || !/^[a-z0-9_-]{3,40}$/.test(slug) || !Number.isFinite(cooldownSeconds) || cooldownSeconds < 5 || cooldownSeconds > 300 || !Number.isFinite(mediaDisplaySeconds) || mediaDisplaySeconds < 1 || mediaDisplaySeconds > 30 || !Number.isFinite(textDisplaySeconds) || textDisplaySeconds < 1 || textDisplaySeconds > 30 || !overlayPosition || !Number.isFinite(overlayMediaWidth) || overlayMediaWidth < 120 || overlayMediaWidth > 900 || !Number.isFinite(overlayMediaHeight) || overlayMediaHeight < 120 || overlayMediaHeight > 700 || !Number.isFinite(overlayTextWidth) || overlayTextWidth < 200 || overlayTextWidth > 1000 || !Number.isFinite(overlayTextHeight) || overlayTextHeight < 70 || overlayTextHeight > 500 || !Number.isFinite(overlayTextFontSize) || overlayTextFontSize < 14 || overlayTextFontSize > 64 || !overlayAnimation || !ttsVoice) {
+    if (!displayName || !/^[a-z0-9_-]{3,40}$/.test(slug) || !Number.isFinite(cooldownSeconds) || cooldownSeconds < 5 || cooldownSeconds > 300 || !Number.isFinite(mediaDisplaySeconds) || mediaDisplaySeconds < 1 || mediaDisplaySeconds > 30 || !Number.isFinite(textDisplaySeconds) || textDisplaySeconds < 1 || textDisplaySeconds > 120 || !overlayPosition || !Number.isFinite(overlayMediaWidth) || overlayMediaWidth < 120 || overlayMediaWidth > 900 || !Number.isFinite(overlayMediaHeight) || overlayMediaHeight < 120 || overlayMediaHeight > 700 || !Number.isFinite(overlayTextWidth) || overlayTextWidth < 200 || overlayTextWidth > 1000 || !Number.isFinite(overlayTextHeight) || overlayTextHeight < 70 || overlayTextHeight > 500 || !Number.isFinite(overlayTextFontSize) || overlayTextFontSize < 14 || overlayTextFontSize > 64 || !overlayAnimation || !ttsVoice) {
       return Response.json({ error: "Проверь ник, адрес, таймаут, размеры и настройки OBS" }, { status: 400 });
     }
     const streamer = await updateStreamerSettings(user.userId, { displayName, slug, cooldownSeconds, mediaDisplaySeconds, textDisplaySeconds, overlayPosition, overlayMediaWidth, overlayMediaHeight, overlayTextWidth, overlayTextHeight, overlayTextFontSize, overlayAnimation, ttsVoice });
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 }
 
 function normalizeOverlayPosition(value: string | undefined) {
-  const positions = ["bottom-right", "bottom-left", "top-right", "top-left", "center"] as const;
+  const positions = ["bottom-right", "bottom-left", "bottom-center", "center-right", "center-left", "top-right", "top-left", "center"] as const;
   return positions.find((position) => position === value) ?? null;
 }
 

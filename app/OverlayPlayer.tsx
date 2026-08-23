@@ -9,7 +9,7 @@ type Alert = { id: string; createdAt: number; message?: string; viewerName?: str
 type OverlaySettings = {
   mediaDisplaySeconds: number;
   textDisplaySeconds: number;
-  overlayPosition: "bottom-right" | "bottom-left" | "top-right" | "top-left" | "center";
+  overlayPosition: "bottom-right" | "bottom-left" | "bottom-center" | "center-right" | "center-left" | "top-right" | "top-left" | "center";
   overlayMediaWidth: number;
   overlayMediaHeight: number;
   overlayTextWidth: number;
@@ -40,6 +40,7 @@ export function OverlayPlayer({ token }: { token: string }) {
     { mediaDisplaySeconds: 5, textDisplaySeconds: 5, overlayPosition: "bottom-right", overlayMediaWidth: 360, overlayMediaHeight: 300, overlayTextWidth: 480, overlayTextHeight: 160, overlayTextFontSize: 28, overlayAnimation: "pop", ttsVoice: "system" },
   );
   const [readyAlertId, setReadyAlertId] = useState<string | null>(null);
+  const [hiddenAlertId, setHiddenAlertId] = useState<string | null>(null);
   const [viewport, setViewport] = useState({ width: 1920, height: 1080 });
   const cursor = useRef(0);
   const known = useRef(new Set<string>());
@@ -101,6 +102,9 @@ export function OverlayPlayer({ token }: { token: string }) {
     const alert = active;
     let cancelled = false;
     const currentVideo = videoRef.current;
+    const visibilityTimer = alert.message
+      ? window.setTimeout(() => setHiddenAlertId(alert.id), settings.textDisplaySeconds * 1000)
+      : 0;
     const finish = () => {
       if (!cancelled) {
         void markAlertState(token, alert.id, "completed");
@@ -115,7 +119,7 @@ export function OverlayPlayer({ token }: { token: string }) {
         const display = wait(settings.mediaDisplaySeconds * 1000);
         if (hasMessageSound(alert.meme)) await playMessageSound();
         if (alert.message) {
-          await Promise.all([display, keepTextVisibleUntilSpeechEnds(alert.message, settings.ttsVoice, settings.textDisplaySeconds * 1000)]);
+          await Promise.all([display, speak(alert.message, settings.ttsVoice)]);
         } else {
           await display;
         }
@@ -130,7 +134,7 @@ export function OverlayPlayer({ token }: { token: string }) {
         await wait(alert.meme.sound === "video" ? 500 : 3600);
       }
       if (alert.message) {
-        await keepTextVisibleUntilSpeechEnds(alert.message, settings.ttsVoice, settings.textDisplaySeconds * 1000);
+        await speak(alert.message, settings.ttsVoice);
       }
       finish();
     }
@@ -159,6 +163,7 @@ export function OverlayPlayer({ token }: { token: string }) {
     void runAlert();
     return () => {
       cancelled = true;
+      window.clearTimeout(visibilityTimer);
       window.speechSynthesis?.cancel();
       audioRef.current?.pause();
       currentVideo?.pause();
@@ -178,7 +183,8 @@ export function OverlayPlayer({ token }: { token: string }) {
     <main className="overlay-stage" aria-live="assertive">
       {active ? (
         <div
-          className={`overlay-alert overlay-animation-${settings.overlayAnimation} ${mediaReady ? "overlay-media-ready" : "overlay-media-loading"} overlay-pos-${settings.overlayPosition} ${active.meme.mediaUrl ? "overlay-file-alert" : "overlay-built-in-alert"} ${active.message ? "overlay-with-text" : active.viewerName ? "overlay-with-sender" : ""} tone-${active.meme.tone}`}
+          aria-hidden={hiddenAlertId === active.id}
+          className={`overlay-alert overlay-animation-${settings.overlayAnimation} ${mediaReady ? "overlay-media-ready" : "overlay-media-loading"} ${hiddenAlertId === active.id ? "overlay-visual-hidden" : ""} overlay-pos-${settings.overlayPosition} ${active.meme.mediaUrl ? "overlay-file-alert" : "overlay-built-in-alert"} ${active.message ? "overlay-with-text" : active.viewerName ? "overlay-with-sender" : ""} tone-${active.meme.tone}`}
           key={active.id}
           style={active.message ? { width: `${visibleAlertWidth}px` } : undefined}
         >
@@ -281,10 +287,6 @@ async function markAlertState(token: string, alertId: string, state: "started" |
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-}
-
-async function keepTextVisibleUntilSpeechEnds(text: string, voicePreset: TtsVoicePreset, minimumMs: number) {
-  await Promise.all([speak(text, voicePreset), wait(minimumMs)]);
 }
 
 function mediaPromise(element: HTMLMediaElement, fallbackMs: number, onPlaying?: () => void) {

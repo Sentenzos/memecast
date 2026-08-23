@@ -35,9 +35,12 @@ test("renders the streamer sign-in page", async () => {
   assert.doesNotMatch(html, /SSH-туннель|\.env|Открыть демо без входа/);
 });
 
-test("keeps the overlay alive until speech ends and fits long text inside the viewport", async () => {
+test("hides alert visuals on schedule while speech finishes and fits long text inside the viewport", async () => {
   const overlaySource = await readFile(new URL("../app/OverlayPlayer.tsx", import.meta.url), "utf8");
-  assert.match(overlaySource, /Promise\.all\(\[speak\(text, voicePreset\), wait\(minimumMs\)\]\)/);
+  assert.match(overlaySource, /setTimeout\(\(\) => setHiddenAlertId\(alert\.id\), settings\.textDisplaySeconds \* 1000\)/);
+  assert.match(overlaySource, /await speak\(alert\.message, settings\.ttsVoice\)/);
+  assert.match(overlaySource, /overlay-visual-hidden/);
+  assert.doesNotMatch(overlaySource, /keepTextVisibleUntilSpeechEnds/);
   assert.doesNotMatch(overlaySource, /Promise\.race\(\[speak\(/);
   assert.match(overlaySource, /viewport\.width - 88/);
   assert.match(overlaySource, /width: `\$\{visibleAlertWidth\}px`/);

@@ -71,6 +71,19 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   assert.equal(changedProfile.overlayTextHeight, 210);
   assert.equal(changedProfile.overlayTextFontSize, 36);
 
+  let positionedProfile = changedProfile;
+  for (const position of ["center-left", "center-right", "bottom-center"]) {
+    const positionedResponse = await call("/api/profile", {
+      method: "POST",
+      headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
+      body: JSON.stringify({ ...positionedProfile, overlayPosition: position, textDisplaySeconds: 75 }),
+    });
+    assert.equal(positionedResponse.status, 200);
+    positionedProfile = (await positionedResponse.json()).profile;
+    assert.equal(positionedProfile.overlayPosition, position);
+    assert.equal(positionedProfile.textDisplaySeconds, 75);
+  }
+
   const invalidVoice = await call("/api/profile", {
     method: "POST",
     headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
@@ -157,6 +170,8 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   assert.equal(overlaySettings.overlayTextWidth, 620);
   assert.equal(overlaySettings.overlayTextHeight, 210);
   assert.equal(overlaySettings.overlayTextFontSize, 36);
+  assert.equal(overlaySettings.overlayPosition, "bottom-center");
+  assert.equal(overlaySettings.textDisplaySeconds, 75);
 
   const spoofedSecondAlert = await call("/api/alerts", {
     method: "POST",

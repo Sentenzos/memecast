@@ -12,7 +12,7 @@ type Profile = {
   cooldownSeconds: number;
   mediaDisplaySeconds: number;
   textDisplaySeconds: number;
-  overlayPosition: "bottom-right" | "bottom-left" | "top-right" | "top-left" | "center";
+  overlayPosition: "bottom-right" | "bottom-left" | "bottom-center" | "center-right" | "center-left" | "top-right" | "top-left" | "center";
   overlayMediaWidth: number;
   overlayMediaHeight: number;
   overlayTextWidth: number;
@@ -541,7 +541,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
             <label>Ник на странице<input value={profile.displayName} onChange={(e) => setProfile({ ...profile, displayName: e.target.value.slice(0, 40) })} /></label>
             <label>Таймаут между мемами<div className="range-row"><input type="range" min="5" max="300" step="5" value={profile.cooldownSeconds} onChange={(e) => setProfile({ ...profile, cooldownSeconds: Number(e.target.value) })} /><strong>{profile.cooldownSeconds} сек.</strong></div></label>
             <label>Медиа в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.mediaDisplaySeconds} onChange={(e) => setProfile({ ...profile, mediaDisplaySeconds: Number(e.target.value) })} /><strong>{profile.mediaDisplaySeconds} сек.</strong></div></label>
-            <label>Минимальное время текста в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.textDisplaySeconds} onChange={(e) => setProfile({ ...profile, textDisplaySeconds: Number(e.target.value) })} /><strong>{profile.textDisplaySeconds} сек.</strong></div></label>
+            <label>Скрывать мем с текстом через<div className="range-row"><input type="range" min="1" max="120" step="1" value={profile.textDisplaySeconds} onChange={(e) => setProfile({ ...profile, textDisplaySeconds: Number(e.target.value) })} /><strong>{profile.textDisplaySeconds} сек.</strong></div></label>
             <label>Ширина медиа в OBS<div className="range-row"><input type="range" min="120" max="900" step="10" value={profile.overlayMediaWidth} onChange={(e) => setProfile({ ...profile, overlayMediaWidth: Number(e.target.value) })} /><strong>{profile.overlayMediaWidth}px</strong></div></label>
             <label>Высота медиа в OBS<div className="range-row"><input type="range" min="120" max="700" step="10" value={profile.overlayMediaHeight} onChange={(e) => setProfile({ ...profile, overlayMediaHeight: Number(e.target.value) })} /><strong>{profile.overlayMediaHeight}px</strong></div></label>
             <label>Ширина блока с текстом<div className="range-row"><input type="range" min="200" max="1000" step="10" value={profile.overlayTextWidth} onChange={(e) => setProfile({ ...profile, overlayTextWidth: Number(e.target.value) })} /><strong>{profile.overlayTextWidth}px</strong></div></label>
@@ -550,21 +550,27 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
             <label>Позиция мемов в OBS<div className="position-grid" role="radiogroup" aria-label="Позиция мемов в OBS">
               {[
                 ["top-left", "↖"],
+                ["", ""],
                 ["top-right", "↗"],
+                ["center-left", "←"],
                 ["center", "•"],
+                ["center-right", "→"],
                 ["bottom-left", "↙"],
+                ["bottom-center", "↓"],
                 ["bottom-right", "↘"],
               ].map(([value, label]) => (
-                <button
-                  aria-checked={profile.overlayPosition === value}
-                  className={profile.overlayPosition === value ? "position-active" : ""}
-                  key={value}
-                  onClick={() => setProfile({ ...profile, overlayPosition: value as Profile["overlayPosition"] })}
-                  role="radio"
-                  type="button"
-                >
-                  {label}
-                </button>
+                value ? (
+                  <button
+                    aria-checked={profile.overlayPosition === value}
+                    className={profile.overlayPosition === value ? "position-active" : ""}
+                    key={value}
+                    onClick={() => setProfile({ ...profile, overlayPosition: value as Profile["overlayPosition"] })}
+                    role="radio"
+                    type="button"
+                  >
+                    {label}
+                  </button>
+                ) : <span aria-hidden="true" className="position-placeholder" key="top-center" />
               ))}
             </div></label>
             <div className="settings-control">
