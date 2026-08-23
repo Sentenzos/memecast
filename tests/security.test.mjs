@@ -54,6 +54,22 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   assert.equal(profileResponse.status, 200);
   const { profile } = await profileResponse.json();
   assert.match(profile.slug, /^[a-z0-9_-]{3,40}$/);
+  assert.equal(profile.ttsVoice, "system");
+
+  const changedVoice = await call("/api/profile", {
+    method: "POST",
+    headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
+    body: JSON.stringify({ ...profile, ttsVoice: "deep-male" }),
+  });
+  assert.equal(changedVoice.status, 200);
+  assert.equal((await changedVoice.json()).profile.ttsVoice, "deep-male");
+
+  const invalidVoice = await call("/api/profile", {
+    method: "POST",
+    headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
+    body: JSON.stringify({ ...profile, ttsVoice: "untrusted-voice" }),
+  });
+  assert.equal(invalidVoice.status, 400);
 
   const hostileProfile = await call("/api/profile", {
     method: "POST",
@@ -101,6 +117,10 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
     body: JSON.stringify({ streamerSlug: profile.slug, viewerKey: "viewer-key-one", viewerName: "Tester", message: "first" }),
   });
   assert.equal(firstAlert.status, 201);
+
+  const overlayPoll = await call(`/api/alerts?token=${encodeURIComponent(profile.overlayToken)}&after=0`);
+  assert.equal(overlayPoll.status, 200);
+  assert.equal((await overlayPoll.json()).settings.ttsVoice, "deep-male");
 
   const spoofedSecondAlert = await call("/api/alerts", {
     method: "POST",

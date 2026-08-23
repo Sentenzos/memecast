@@ -1,0 +1,1 @@
+ALTER TABLE `streamers` ADD `tts_voice` text DEFAULT 'system' NOT NULL;

@@ -275,6 +275,11 @@ a { color: inherit; text-decoration: none; }
 .settings-panel .section-kicker { margin: 0 0 7px; }.settings-panel h2 { margin: 0 0 10px; font-size: 28px; }.settings-panel > div:first-child > p:last-child { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .settings-fields { display: grid; gap: 17px; }.settings-fields label { display: grid; gap: 7px; color: #57554f; font-size: 11px; font-weight: 900; }
 .settings-fields input { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #f7f5ef; color: var(--ink); padding: 11px 12px; outline: none; font-size: 13px; }.settings-fields input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(121,87,255,.12); }
+.voice-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
+.voice-picker select { min-width: 0; width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #f7f5ef; color: var(--ink); padding: 11px 12px; outline: none; font-size: 12px; }
+.voice-picker select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(121,87,255,.12); }
+.voice-picker .secondary-button { padding: 10px 14px; }
+.settings-hint { color: var(--muted); font-size: 10px; font-weight: 700; line-height: 1.4; }
 .slug-field { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #f7f5ef; }.slug-field span { color: #94928b; padding-left: 12px; font: 12px ui-monospace, monospace; }.slug-field input { border: 0; border-radius: 0; padding-left: 4px; }.slug-field:focus-within { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(121,87,255,.12); }.slug-field input:focus { box-shadow: none; }
 .range-row { display: grid; grid-template-columns: 1fr 70px; gap: 14px; align-items: center; }.range-row input { padding: 0; accent-color: var(--purple); }.range-row strong { text-align: center; padding: 10px 5px; background: var(--lime); border-radius: 8px; color: var(--ink); }
 .settings-fields .primary-button { justify-self: start; }

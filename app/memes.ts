@@ -39,5 +39,6 @@ export const demoStreamer = {
   overlayMediaWidth: 360,
   overlayMediaHeight: 300,
   overlayAnimation: "pop" as const,
+  ttsVoice: "system" as const,
   overlayToken: "demo-overlay-local",
 };

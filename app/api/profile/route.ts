@@ -1,6 +1,7 @@
 import { getAdminUser } from "../../admin-auth";
 import { ensureStreamerForOwner, updateStreamerSettings } from "../../../db";
 import { apiError, readJsonBody, rejectCrossOriginRequest } from "../../request-security";
+import { normalizeTtsVoicePreset } from "../../tts";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ function serialize(streamer: Awaited<ReturnType<typeof ensureStreamerForOwner>>)
     overlayMediaWidth: streamer.overlay_media_width,
     overlayMediaHeight: streamer.overlay_media_height,
     overlayAnimation: streamer.overlay_animation,
+    ttsVoice: streamer.tts_voice,
     overlayToken: streamer.overlay_token,
   };
 }
@@ -32,7 +34,7 @@ export async function POST(request: Request) {
     if (rejected) return rejected;
     const user = await getAdminUser();
     if (!user) return Response.json({ error: "Нужно войти" }, { status: 401 });
-    const payload = await readJsonBody<{ displayName?: string; slug?: string; cooldownSeconds?: number; mediaDisplaySeconds?: number; textDisplaySeconds?: number; overlayPosition?: string; overlayMediaWidth?: number; overlayMediaHeight?: number; overlayAnimation?: string }>(request, 8 * 1024);
+    const payload = await readJsonBody<{ displayName?: string; slug?: string; cooldownSeconds?: number; mediaDisplaySeconds?: number; textDisplaySeconds?: number; overlayPosition?: string; overlayMediaWidth?: number; overlayMediaHeight?: number; overlayAnimation?: string; ttsVoice?: string }>(request, 8 * 1024);
     const displayName = payload.displayName?.trim().slice(0, 40) ?? "";
     const slug = payload.slug?.trim() ?? "";
     const cooldownSeconds = Math.round(Number(payload.cooldownSeconds));
@@ -42,10 +44,11 @@ export async function POST(request: Request) {
     const overlayMediaWidth = Math.round(Number(payload.overlayMediaWidth));
     const overlayMediaHeight = Math.round(Number(payload.overlayMediaHeight));
     const overlayAnimation = normalizeOverlayAnimation(payload.overlayAnimation);
-    if (!displayName || !/^[a-z0-9_-]{3,40}$/.test(slug) || !Number.isFinite(cooldownSeconds) || cooldownSeconds < 5 || cooldownSeconds > 300 || !Number.isFinite(mediaDisplaySeconds) || mediaDisplaySeconds < 1 || mediaDisplaySeconds > 30 || !Number.isFinite(textDisplaySeconds) || textDisplaySeconds < 1 || textDisplaySeconds > 30 || !overlayPosition || !Number.isFinite(overlayMediaWidth) || overlayMediaWidth < 120 || overlayMediaWidth > 900 || !Number.isFinite(overlayMediaHeight) || overlayMediaHeight < 120 || overlayMediaHeight > 700 || !overlayAnimation) {
+    const ttsVoice = normalizeTtsVoicePreset(payload.ttsVoice);
+    if (!displayName || !/^[a-z0-9_-]{3,40}$/.test(slug) || !Number.isFinite(cooldownSeconds) || cooldownSeconds < 5 || cooldownSeconds > 300 || !Number.isFinite(mediaDisplaySeconds) || mediaDisplaySeconds < 1 || mediaDisplaySeconds > 30 || !Number.isFinite(textDisplaySeconds) || textDisplaySeconds < 1 || textDisplaySeconds > 30 || !overlayPosition || !Number.isFinite(overlayMediaWidth) || overlayMediaWidth < 120 || overlayMediaWidth > 900 || !Number.isFinite(overlayMediaHeight) || overlayMediaHeight < 120 || overlayMediaHeight > 700 || !overlayAnimation || !ttsVoice) {
       return Response.json({ error: "Проверь ник, адрес, таймаут и настройки OBS" }, { status: 400 });
     }
-    const streamer = await updateStreamerSettings(user.userId, { displayName, slug, cooldownSeconds, mediaDisplaySeconds, textDisplaySeconds, overlayPosition, overlayMediaWidth, overlayMediaHeight, overlayAnimation });
+    const streamer = await updateStreamerSettings(user.userId, { displayName, slug, cooldownSeconds, mediaDisplaySeconds, textDisplaySeconds, overlayPosition, overlayMediaWidth, overlayMediaHeight, overlayAnimation, ttsVoice });
     if (!streamer) throw new Error("Профиль не найден");
     return Response.json({ profile: serialize(streamer) });
   } catch (error) {

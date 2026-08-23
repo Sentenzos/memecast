@@ -22,6 +22,7 @@ export default async function DemoDashboardPage() {
         overlayMediaWidth: streamer.overlay_media_width,
         overlayMediaHeight: streamer.overlay_media_height,
         overlayAnimation: streamer.overlay_animation,
+        ttsVoice: streamer.tts_voice,
         overlayToken: streamer.overlay_token,
       }}
     />

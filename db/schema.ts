@@ -15,6 +15,7 @@ export const streamers = sqliteTable("streamers", {
   overlayMediaWidth: integer("overlay_media_width").notNull().default(360),
   overlayMediaHeight: integer("overlay_media_height").notNull().default(300),
   overlayAnimation: text("overlay_animation").notNull().default("pop"),
+  ttsVoice: text("tts_voice").notNull().default("system"),
   overlayToken: text("overlay_token").notNull(),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),

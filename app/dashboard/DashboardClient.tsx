@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import type { MemeDefinition } from "../memes";
+import { configureSpeechUtterance, TTS_VOICE_PRESETS, type TtsVoicePreset } from "../tts";
 
 type Profile = {
   displayName: string;
@@ -15,6 +16,7 @@ type Profile = {
   overlayMediaWidth: number;
   overlayMediaHeight: number;
   overlayAnimation: "pop" | "slide" | "zoom" | "bounce" | "glitch";
+  ttsVoice: TtsVoicePreset;
   overlayToken: string;
 };
 
@@ -144,6 +146,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
           overlayMediaWidth: result.profile.overlayMediaWidth,
           overlayMediaHeight: result.profile.overlayMediaHeight,
           overlayAnimation: result.profile.overlayAnimation,
+          ttsVoice: result.profile.ttsVoice,
         });
         channel.close();
       }
@@ -153,6 +156,18 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
     } finally {
       setSaving(false);
     }
+  }
+
+  function previewVoice() {
+    const synthesis = window.speechSynthesis;
+    if (!synthesis) {
+      setStatus("Браузер не поддерживает озвучку");
+      return;
+    }
+    const utterance = new SpeechSynthesisUtterance("Привет! Так будут звучать сообщения на стриме.");
+    configureSpeechUtterance(utterance, synthesis.getVoices(), profile.ttsVoice, "ru-RU");
+    synthesis.cancel();
+    synthesis.speak(utterance);
   }
 
   async function uploadMedia() {
@@ -543,6 +558,16 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
                 </button>
               ))}
             </div></label>
+            <div className="settings-control">
+              <span>Голос озвучки сообщений</span>
+              <div className="voice-picker">
+                <select aria-label="Голос озвучки сообщений" value={profile.ttsVoice} onChange={(event) => setProfile({ ...profile, ttsVoice: event.target.value as TtsVoicePreset })}>
+                  {TTS_VOICE_PRESETS.map((preset) => <option key={preset.value} value={preset.value}>{preset.label} — {preset.description}</option>)}
+                </select>
+                <button className="secondary-button" onClick={previewVoice} type="button">Прослушать</button>
+              </div>
+              <small className="settings-hint">Конкретный тембр зависит от голосов, установленных на компьютере с OBS.</small>
+            </div>
             <div className="settings-control">
               <span>Анимация появления мема</span>
               <div className="animation-grid" role="radiogroup" aria-label="Анимация появления мема">

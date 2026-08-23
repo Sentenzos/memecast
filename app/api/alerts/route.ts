@@ -152,6 +152,7 @@ export async function GET(request: Request) {
         overlayMediaWidth: streamer.overlay_media_width,
         overlayMediaHeight: streamer.overlay_media_height,
         overlayAnimation: streamer.overlay_animation,
+        ttsVoice: streamer.tts_voice,
       },
       serverTime: Date.now(),
     });

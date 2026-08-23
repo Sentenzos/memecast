@@ -3,6 +3,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import type { MemeDefinition } from "./memes";
 import { playMemeSound, playMessageSound, preloadMessageSound } from "./sound";
+import { configureSpeechUtterance, type TtsVoicePreset } from "./tts";
 
 type Alert = { id: string; createdAt: number; message?: string; viewerName?: string; meme: MemeDefinition };
 type OverlaySettings = {
@@ -12,6 +13,7 @@ type OverlaySettings = {
   overlayMediaWidth: number;
   overlayMediaHeight: number;
   overlayAnimation: "pop" | "slide" | "zoom" | "bounce" | "glitch";
+  ttsVoice: TtsVoicePreset;
 };
 type OverlayState = { queue: Alert[]; active: Alert | null };
 type OverlayAction = { type: "enqueue"; alerts: Alert[] } | { type: "complete" };
@@ -32,7 +34,7 @@ export function OverlayPlayer({ token }: { token: string }) {
   const [{ active }, dispatch] = useReducer(overlayReducer, { queue: [], active: null });
   const [settings, setSettings] = useReducer(
     (current: OverlaySettings, next: Partial<OverlaySettings>) => ({ ...current, ...next }),
-    { mediaDisplaySeconds: 5, textDisplaySeconds: 5, overlayPosition: "bottom-right", overlayMediaWidth: 360, overlayMediaHeight: 300, overlayAnimation: "pop" },
+    { mediaDisplaySeconds: 5, textDisplaySeconds: 5, overlayPosition: "bottom-right", overlayMediaWidth: 360, overlayMediaHeight: 300, overlayAnimation: "pop", ttsVoice: "system" },
   );
   const [readyAlertId, setReadyAlertId] = useState<string | null>(null);
   const cursor = useRef(0);
@@ -102,7 +104,7 @@ export function OverlayPlayer({ token }: { token: string }) {
         const display = wait(settings.mediaDisplaySeconds * 1000);
         if (hasMessageSound(alert.meme)) await playMessageSound();
         if (alert.message) {
-          await Promise.all([display, Promise.race([speak(alert.message), wait(settings.textDisplaySeconds * 1000)])]);
+          await Promise.all([display, Promise.race([speak(alert.message, settings.ttsVoice), wait(settings.textDisplaySeconds * 1000)])]);
         } else {
           await display;
         }
@@ -117,7 +119,7 @@ export function OverlayPlayer({ token }: { token: string }) {
         await wait(alert.meme.sound === "video" ? 500 : 3600);
       }
       if (alert.message) {
-        await Promise.race([speak(alert.message), wait(settings.textDisplaySeconds * 1000)]);
+        await Promise.race([speak(alert.message, settings.ttsVoice), wait(settings.textDisplaySeconds * 1000)]);
       }
       finish();
     }
@@ -150,7 +152,7 @@ export function OverlayPlayer({ token }: { token: string }) {
       audioRef.current?.pause();
       currentVideo?.pause();
     };
-  }, [active, settings.mediaDisplaySeconds, settings.textDisplaySeconds, token]);
+  }, [active, settings.mediaDisplaySeconds, settings.textDisplaySeconds, settings.ttsVoice, token]);
 
   const waitsForPlayableMedia = Boolean(active?.meme.mediaUrl && active.meme.mediaType !== "image");
   const mediaReady = !active || !waitsForPlayableMedia || readyAlertId === active.id;
@@ -266,7 +268,7 @@ function readyPromise(target: EventTarget, events: string[], timeoutMs: number) 
   });
 }
 
-function speak(text: string) {
+function speak(text: string, voicePreset: TtsVoicePreset) {
   return new Promise<void>((resolve) => {
     const synthesis = Reflect.get(window, "speechSynthesis") as SpeechSynthesis | undefined;
     if (!synthesis) {
@@ -274,10 +276,7 @@ function speak(text: string) {
       return;
     }
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = /[а-яё]/i.test(text) ? "ru-RU" : "en-US";
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    utterance.voice = synthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith(utterance.lang.slice(0, 2).toLowerCase())) ?? null;
+    configureSpeechUtterance(utterance, synthesis.getVoices(), voicePreset, /[а-яё]/i.test(text) ? "ru-RU" : "en-US");
     utterance.onend = () => resolve();
     utterance.onerror = () => resolve();
     synthesis.cancel();
