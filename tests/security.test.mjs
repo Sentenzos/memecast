@@ -120,6 +120,24 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   });
   assert.equal(invalidRange.status, 416);
 
+  const benignMessage = "При создании генератора мы использовали небезизвестный универсальный код речей. Текст генерируется абзацами случайным образом от двух до десяти предложений в абзаце, что позволяет сделать текст более привлекательным и живым для визуально-слухового восприятия.";
+  const benignAlert = await call("/api/alerts", {
+    method: "POST",
+    headers: { origin: "http://localhost", "content-type": "application/json", "x-real-ip": "198.51.100.18" },
+    body: JSON.stringify({ streamerSlug: profile.slug, viewerKey: "benign-message-test", viewerName: "Tester", message: benignMessage }),
+  });
+  assert.equal(benignAlert.status, 201);
+
+  for (const [index, message] of ["ебаный тест", "х.у.й", "пиздец"].entries()) {
+    const rejectedProfanity = await call("/api/alerts", {
+      method: "POST",
+      headers: { origin: "http://localhost", "content-type": "application/json", "x-real-ip": `198.51.100.${40 + index}` },
+      body: JSON.stringify({ streamerSlug: profile.slug, viewerKey: `profanity-test-${index}`, viewerName: "Tester", message }),
+    });
+    assert.equal(rejectedProfanity.status, 400);
+    assert.match((await rejectedProfanity.json()).error, /убери мат/i);
+  }
+
   const firstAlert = await call("/api/alerts", {
     method: "POST",
     headers: {

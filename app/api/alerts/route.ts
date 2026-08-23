@@ -175,22 +175,28 @@ function containsProfanity(value: string) {
     .replace(/[xх]/g, "х")
     .replace(/[yу]/g, "у")
     .replace(/[6]/g, "б")
-    .replace(/[1i!]/g, "и")
-    .replace(/[^а-яёa-z]+/g, "");
-  return [
-    /ху[йиеяю]/,
-    /п[ие]зд/,
-    /бл[яе]/,
-    /еб[а-яё]*|ёб[а-яё]*/,
-    /сука/,
-    /мудак/,
-    /мудил/,
-    /залуп/,
-    /гандон/,
-    /пид[ао]?р/,
-    /шлюх/,
-    /долбо[её]б/,
-  ].some((pattern) => pattern.test(normalized));
+    .replace(/[1i!]/g, "и");
+  const words = normalized.split(/[^а-яёъь]+/).filter(Boolean);
+  const compactChunks = normalized
+    .split(/\s+/)
+    .map((chunk) => chunk.replace(/[^а-яёъь]+/g, ""))
+    .filter(Boolean);
+  const candidates = new Set([...words, ...compactChunks]);
+  const patterns = [
+    /^(?:(?:а|о|на|ни|по|за|до|от|при|про|пере)?ху(?:й|я|е|ё|и|ю))[а-яёъь]*$/,
+    /^(?:(?:вз|с|рас|раз|за|на|по|про|при|от)?п[ие]зд)[а-яёъь]*$/,
+    /^бля(?:ть|тский|тство|д[а-яёъь]*)?$/,
+    /^(?:(?:вы|до|за|на|пере|по|под|при|про|у|объ?|отъ?|разъ?|съ)?[её]б)(?:$|[аеиоуыёюянл])[а-яёъь]*$/,
+    /^сук(?:а|и|у|ой|е|ам|ами|ах|ин)[а-яёъь]*$/,
+    /^мудак[а-яёъь]*$/,
+    /^мудил[а-яёъь]*$/,
+    /^залуп[а-яёъь]*$/,
+    /^гандон[а-яёъь]*$/,
+    /^пид[ао]?р[а-яёъь]*$/,
+    /^шлюх[а-яёъь]*$/,
+    /^долбо[её]б[а-яёъь]*$/,
+  ];
+  return [...candidates].some((word) => patterns.some((pattern) => pattern.test(word)));
 }
 
 function displayMediaUrl(asset: { source_type: string | null; source_url: string | null; media_url: string | null }) {
