@@ -159,12 +159,15 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   });
   assert.equal(tunneledAdminLogin.status, 303);
 
-  const hostileTunnelOrigin = await call("/api/auth/login", {
+  process.env.APP_URL = "http://public.example";
+  const configuredOriginThroughTunnel = await call("/api/auth/login", {
     method: "POST",
-    headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site", "x-real-ip": "127.0.0.1" },
+    headers: { origin: "http://public.example", "sec-fetch-site": "cross-site", "x-real-ip": "127.0.0.1" },
     body: new URLSearchParams({ login: "security-admin", password: "security-test-credential-42" }),
   });
-  assert.equal(hostileTunnelOrigin.status, 403);
+  assert.equal(configuredOriginThroughTunnel.status, 303);
+  process.env.APP_URL = "http://localhost";
+
   process.env.ADMIN_LOCAL_ONLY = "false";
 
   const caddy = await readFile(resolve("Caddyfile"), "utf8");

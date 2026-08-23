@@ -3,26 +3,13 @@ import { isIP } from "node:net";
 export class RequestBodyTooLargeError extends Error {}
 
 export function rejectCrossOriginRequest(request: Request) {
+  // Caddy's dedicated :8081 listener is bound to the VPS loopback interface
+  // and overwrites X-Real-IP. That transport boundary is more reliable than
+  // browser-specific Origin/Sec-Fetch-Site behavior inside OBS/Codex browsers.
+  if (adminLocalOnlyEnabled() && isLoopbackIp(clientIp(request))) return null;
+
   const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
   const supplied = request.headers.get("origin");
-  let suppliedUrl: URL | null = null;
-  if (supplied) {
-    try {
-      suppliedUrl = new URL(supplied);
-    } catch {
-      return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
-    }
-  }
-  const tunneledAdminOrigin = Boolean(
-    suppliedUrl &&
-    adminLocalOnlyEnabled() &&
-    isLoopbackIp(clientIp(request)) &&
-    isLoopbackHostname(suppliedUrl.hostname),
-  );
-  if (fetchSite === "cross-site" && !tunneledAdminOrigin) {
-    return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
-  }
-  if (!supplied) return null;
   const allowed = new Set<string>();
   try {
     allowed.add(new URL(request.url).origin);
@@ -37,7 +24,26 @@ export function rejectCrossOriginRequest(request: Request) {
       // Production startup validates APP_URL. Ignore an invalid value in build-time tests.
     }
   }
-  if (!suppliedUrl || (!allowed.has(suppliedUrl.origin) && !tunneledAdminOrigin)) {
+  let suppliedUrl: URL | null = null;
+  if (supplied) {
+    try {
+      suppliedUrl = new URL(supplied);
+    } catch {
+      return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
+    }
+  }
+  const tunneledAdminOrigin = Boolean(
+    suppliedUrl &&
+    adminLocalOnlyEnabled() &&
+    isLoopbackIp(clientIp(request)) &&
+    isLoopbackHostname(suppliedUrl.hostname),
+  );
+  const suppliedOriginAllowed = Boolean(suppliedUrl && (allowed.has(suppliedUrl.origin) || tunneledAdminOrigin));
+  if (fetchSite === "cross-site" && !suppliedOriginAllowed) {
+    return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
+  }
+  if (!supplied) return null;
+  if (!suppliedOriginAllowed) {
     return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
   }
   return null;
