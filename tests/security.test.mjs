@@ -149,8 +149,8 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   });
   assert.equal(remoteLoginPage.status, 200);
   const remoteLoginHtml = await remoteLoginPage.text();
-  assert.match(remoteLoginHtml, /SSH-туннель/);
   assert.doesNotMatch(remoteLoginHtml, /name="password"/);
+  assert.doesNotMatch(remoteLoginHtml, /SSH-туннель|\.env|Открыть демо без входа/);
 
   const tunneledAdminLogin = await call("/api/auth/login", {
     method: "POST",

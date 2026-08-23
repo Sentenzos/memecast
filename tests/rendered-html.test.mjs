@@ -31,4 +31,5 @@ test("renders the streamer sign-in page", async () => {
   assert.match(html, /name="login"/);
   assert.match(html, /name="password"/);
   assert.doesNotMatch(html, /Twitch Client|api\/twitch/i);
+  assert.doesNotMatch(html, /SSH-туннель|\.env|Открыть демо без входа/);
 });
