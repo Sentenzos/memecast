@@ -35,9 +35,12 @@ test("renders the streamer sign-in page", async () => {
   assert.doesNotMatch(html, /SSH-туннель|\.env|Открыть демо без входа/);
 });
 
-test("keeps the overlay alive until speech ends and clamps long text", async () => {
+test("keeps the overlay alive until speech ends and fits long text inside the viewport", async () => {
   const overlaySource = await readFile(new URL("../app/OverlayPlayer.tsx", import.meta.url), "utf8");
   assert.match(overlaySource, /Promise\.all\(\[speak\(text, voicePreset\), wait\(minimumMs\)\]\)/);
   assert.doesNotMatch(overlaySource, /Promise\.race\(\[speak\(/);
-  assert.match(overlaySource, /WebkitLineClamp: visibleMessageLines/);
+  assert.match(overlaySource, /viewport\.width - 88/);
+  assert.match(overlaySource, /width: `\$\{visibleAlertWidth\}px`/);
+  assert.match(overlaySource, /element\.scrollHeight <= element\.clientHeight/);
+  assert.match(overlaySource, /trimEnd\(\)\}…/);
 });

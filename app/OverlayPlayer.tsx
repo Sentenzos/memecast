@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import type { MemeDefinition } from "./memes";
 import { playMemeSound, playMessageSound, preloadMessageSound } from "./sound";
 import { configureSpeechUtterance, type TtsVoicePreset } from "./tts";
@@ -40,6 +40,7 @@ export function OverlayPlayer({ token }: { token: string }) {
     { mediaDisplaySeconds: 5, textDisplaySeconds: 5, overlayPosition: "bottom-right", overlayMediaWidth: 360, overlayMediaHeight: 300, overlayTextWidth: 480, overlayTextHeight: 160, overlayTextFontSize: 28, overlayAnimation: "pop", ttsVoice: "system" },
   );
   const [readyAlertId, setReadyAlertId] = useState<string | null>(null);
+  const [viewport, setViewport] = useState({ width: 1920, height: 1080 });
   const cursor = useRef(0);
   const known = useRef(new Set<string>());
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -77,6 +78,13 @@ export function OverlayPlayer({ token }: { token: string }) {
   useEffect(() => {
     window.speechSynthesis?.getVoices();
     preloadMessageSound();
+  }, []);
+
+  useEffect(() => {
+    const updateViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
   }, []);
 
   useEffect(() => {
@@ -159,15 +167,21 @@ export function OverlayPlayer({ token }: { token: string }) {
 
   const waitsForPlayableMedia = Boolean(active?.meme.mediaUrl && active.meme.mediaType !== "image");
   const mediaReady = !active || !waitsForPlayableMedia || readyAlertId === active.id;
+  const visibleTextWidth = Math.min(settings.overlayTextWidth, Math.max(1, viewport.width - 88));
+  const visibleTextHeight = Math.min(settings.overlayTextHeight, Math.max(1, viewport.height - 88));
+  const visibleAlertWidth = Math.min(Math.max(visibleTextWidth, settings.overlayMediaWidth), Math.max(1, viewport.width - 88));
   const senderHeight = active?.viewerName ? 19 : 0;
-  const availableMessageHeight = Math.max(12, settings.overlayTextHeight - 26 - senderHeight);
+  const availableMessageHeight = Math.max(12, visibleTextHeight - 26 - senderHeight);
   const visibleFontSize = Math.max(10, Math.min(settings.overlayTextFontSize, Math.floor(availableMessageHeight / 1.12)));
-  const visibleMessageLines = Math.max(1, Math.floor(availableMessageHeight / (visibleFontSize * 1.12)));
 
   return (
     <main className="overlay-stage" aria-live="assertive">
       {active ? (
-        <div className={`overlay-alert overlay-animation-${settings.overlayAnimation} ${mediaReady ? "overlay-media-ready" : "overlay-media-loading"} overlay-pos-${settings.overlayPosition} ${active.meme.mediaUrl ? "overlay-file-alert" : "overlay-built-in-alert"} ${active.message ? "overlay-with-text" : active.viewerName ? "overlay-with-sender" : ""} tone-${active.meme.tone}`} key={active.id}>
+        <div
+          className={`overlay-alert overlay-animation-${settings.overlayAnimation} ${mediaReady ? "overlay-media-ready" : "overlay-media-loading"} overlay-pos-${settings.overlayPosition} ${active.meme.mediaUrl ? "overlay-file-alert" : "overlay-built-in-alert"} ${active.message ? "overlay-with-text" : active.viewerName ? "overlay-with-sender" : ""} tone-${active.meme.tone}`}
+          key={active.id}
+          style={active.message ? { width: `${visibleAlertWidth}px` } : undefined}
+        >
           {active.meme.mediaUrl ? (
             <div className="overlay-file">
               {active.meme.mediaType === "image" ? (
@@ -184,16 +198,68 @@ export function OverlayPlayer({ token }: { token: string }) {
           {active.message || active.viewerName || !active.meme.mediaUrl ? (
             <div
               className={`overlay-text ${!active.message && active.viewerName ? "overlay-sender-only" : ""}`}
-              style={active.message ? { width: `${settings.overlayTextWidth}px`, height: `${settings.overlayTextHeight}px` } : undefined}
+              style={active.message ? { width: `${visibleTextWidth}px`, height: `${visibleTextHeight}px` } : undefined}
             >
               {active.viewerName ? <span>{active.viewerName}</span> : null}
-              {active.message ? <strong style={{ fontSize: `${visibleFontSize}px`, WebkitLineClamp: visibleMessageLines }}>{active.message}</strong> : !active.meme.mediaUrl ? <strong>{active.meme.title}</strong> : null}
+              {active.message ? (
+                <FittedOverlayMessage
+                  fontSize={visibleFontSize}
+                  layoutKey={`${visibleTextWidth}:${visibleTextHeight}:${active.viewerName ?? ""}`}
+                  text={active.message}
+                />
+              ) : !active.meme.mediaUrl ? <strong>{active.meme.title}</strong> : null}
             </div>
           ) : null}
         </div>
       ) : null}
     </main>
   );
+}
+
+function FittedOverlayMessage({ text, fontSize, layoutKey }: { text: string; fontSize: number; layoutKey: string }) {
+  const elementRef = useRef<HTMLElement | null>(null);
+  const [visibleText, setVisibleText] = useState(text);
+
+  useLayoutEffect(() => {
+    const element = elementRef.current;
+    if (!element) return;
+    let frame = 0;
+    const fitText = () => {
+      const symbols = Array.from(text);
+      const fits = (candidate: string) => {
+        element.textContent = candidate;
+        return element.scrollHeight <= element.clientHeight + 1 && element.scrollWidth <= element.clientWidth + 1;
+      };
+
+      let nextText = text;
+      if (!fits(text)) {
+        let low = 0;
+        let high = symbols.length;
+        while (low < high) {
+          const middle = Math.ceil((low + high) / 2);
+          const candidate = `${symbols.slice(0, middle).join("").trimEnd()}…`;
+          if (fits(candidate)) low = middle;
+          else high = middle - 1;
+        }
+        nextText = `${symbols.slice(0, low).join("").trimEnd()}…`;
+      }
+      element.textContent = nextText;
+      setVisibleText((current) => current === nextText ? current : nextText);
+    };
+
+    frame = window.requestAnimationFrame(fitText);
+    const observer = new ResizeObserver(() => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(fitText);
+    });
+    if (element.parentElement) observer.observe(element.parentElement);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [fontSize, layoutKey, text]);
+
+  return <strong ref={elementRef} style={{ fontSize: `${fontSize}px` }}>{visibleText}</strong>;
 }
 
 function hasMessageSound(meme: MemeDefinition) {

@@ -412,7 +412,7 @@ html:has(.overlay-stage), body:has(.overlay-stage) { background: transparent !im
 .overlay-pos-top-left .overlay-text { text-align: left; }
 .overlay-pos-center .overlay-text { text-align: center; }
 .overlay-text span { display: block; flex: 0 0 auto; max-width: 100%; margin-bottom: 4px; overflow: hidden; color: var(--lime); font: 900 11px ui-monospace, monospace; letter-spacing: .08em; text-overflow: ellipsis; white-space: nowrap; }
-.overlay-text strong { display: -webkit-box; min-width: 0; min-height: 0; max-width: 100%; overflow: hidden; font-size: clamp(20px, 2.4vw, 34px); line-height: 1.12; letter-spacing: 0; overflow-wrap: anywhere; text-overflow: ellipsis; -webkit-box-orient: vertical; }
+.overlay-text strong { display: block; flex: 1 1 auto; min-width: 0; min-height: 0; max-width: 100%; overflow: hidden; font-size: clamp(20px, 2.4vw, 34px); line-height: 1.12; letter-spacing: 0; overflow-wrap: anywhere; }
 .overlay-sender-only { padding: 9px 13px; border-radius: 10px; }
 .overlay-sender-only span { margin: 0; font-size: 13px; }
 @keyframes sticker-pop { from { opacity: 0; transform: scale(.3) rotate(-20deg); } 70% { transform: scale(1.14) rotate(5deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
