@@ -16,6 +16,9 @@ export type StreamerRecord = {
   overlay_position: OverlayPosition;
   overlay_media_width: number;
   overlay_media_height: number;
+  overlay_text_width: number;
+  overlay_text_height: number;
+  overlay_text_font_size: number;
   overlay_animation: OverlayAnimation;
   tts_voice: TtsVoicePreset;
   overlay_token: string;
@@ -127,6 +130,9 @@ async function ensureStreamerShape() {
     ["overlay_position", "ALTER TABLE streamers ADD COLUMN overlay_position TEXT NOT NULL DEFAULT 'bottom-right'"],
     ["overlay_media_width", "ALTER TABLE streamers ADD COLUMN overlay_media_width INTEGER NOT NULL DEFAULT 360"],
     ["overlay_media_height", "ALTER TABLE streamers ADD COLUMN overlay_media_height INTEGER NOT NULL DEFAULT 300"],
+    ["overlay_text_width", "ALTER TABLE streamers ADD COLUMN overlay_text_width INTEGER NOT NULL DEFAULT 480"],
+    ["overlay_text_height", "ALTER TABLE streamers ADD COLUMN overlay_text_height INTEGER NOT NULL DEFAULT 160"],
+    ["overlay_text_font_size", "ALTER TABLE streamers ADD COLUMN overlay_text_font_size INTEGER NOT NULL DEFAULT 28"],
     ["overlay_animation", "ALTER TABLE streamers ADD COLUMN overlay_animation TEXT NOT NULL DEFAULT 'pop'"],
     ["tts_voice", "ALTER TABLE streamers ADD COLUMN tts_voice TEXT NOT NULL DEFAULT 'system'"],
   ] as const;
@@ -161,6 +167,9 @@ export async function ensureDatabase() {
       overlay_position TEXT NOT NULL DEFAULT 'bottom-right',
       overlay_media_width INTEGER NOT NULL DEFAULT 360,
       overlay_media_height INTEGER NOT NULL DEFAULT 300,
+      overlay_text_width INTEGER NOT NULL DEFAULT 480,
+      overlay_text_height INTEGER NOT NULL DEFAULT 160,
+      overlay_text_font_size INTEGER NOT NULL DEFAULT 28,
       overlay_animation TEXT NOT NULL DEFAULT 'pop',
       tts_voice TEXT NOT NULL DEFAULT 'system',
       overlay_token TEXT NOT NULL UNIQUE,
@@ -218,8 +227,8 @@ export async function ensureDatabase() {
 
   const now = Date.now();
   await db.prepare(`INSERT OR IGNORE INTO streamers
-    (id, owner_user_id, slug, twitch_user_id, twitch_login, display_name, avatar_url, cooldown_seconds, media_display_seconds, text_display_seconds, overlay_position, overlay_media_width, overlay_media_height, overlay_animation, tts_voice, overlay_token, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    (id, owner_user_id, slug, twitch_user_id, twitch_login, display_name, avatar_url, cooldown_seconds, media_display_seconds, text_display_seconds, overlay_position, overlay_media_width, overlay_media_height, overlay_text_width, overlay_text_height, overlay_text_font_size, overlay_animation, tts_voice, overlay_token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .bind(
       "demo-streamer",
       "demo-owner",
@@ -234,6 +243,9 @@ export async function ensureDatabase() {
       demoStreamer.overlayPosition,
       demoStreamer.overlayMediaWidth,
       demoStreamer.overlayMediaHeight,
+      demoStreamer.overlayTextWidth,
+      demoStreamer.overlayTextHeight,
+      demoStreamer.overlayTextFontSize,
       demoStreamer.overlayAnimation,
       demoStreamer.ttsVoice,
       demoStreamer.overlayToken,
@@ -284,17 +296,17 @@ export async function ensureStreamerForOwner(ownerUserId: string, displayName: s
   const id = crypto.randomUUID();
   const slug = `${normalizeSlug(displayName)}-${id.slice(0, 5)}`;
   await getD1().prepare(`INSERT INTO streamers
-    (id, owner_user_id, slug, display_name, cooldown_seconds, media_display_seconds, text_display_seconds, overlay_position, overlay_media_width, overlay_media_height, overlay_animation, tts_voice, overlay_token, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 30, 5, 5, 'bottom-right', 360, 300, 'pop', 'system', ?, ?, ?)`)
+    (id, owner_user_id, slug, display_name, cooldown_seconds, media_display_seconds, text_display_seconds, overlay_position, overlay_media_width, overlay_media_height, overlay_text_width, overlay_text_height, overlay_text_font_size, overlay_animation, tts_voice, overlay_token, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 30, 5, 5, 'bottom-right', 360, 300, 480, 160, 28, 'pop', 'system', ?, ?, ?)`)
     .bind(id, ownerUserId, slug, displayName, crypto.randomUUID(), now, now).run();
   return getStreamerByOwner(ownerUserId) as Promise<StreamerRecord>;
 }
 
-export async function updateStreamerSettings(ownerUserId: string, input: { displayName: string; slug: string; cooldownSeconds: number; mediaDisplaySeconds: number; textDisplaySeconds: number; overlayPosition: OverlayPosition; overlayMediaWidth: number; overlayMediaHeight: number; overlayAnimation: OverlayAnimation; ttsVoice: TtsVoicePreset }) {
+export async function updateStreamerSettings(ownerUserId: string, input: { displayName: string; slug: string; cooldownSeconds: number; mediaDisplaySeconds: number; textDisplaySeconds: number; overlayPosition: OverlayPosition; overlayMediaWidth: number; overlayMediaHeight: number; overlayTextWidth: number; overlayTextHeight: number; overlayTextFontSize: number; overlayAnimation: OverlayAnimation; ttsVoice: TtsVoicePreset }) {
   const streamer = await ensureStreamerForOwner(ownerUserId, input.displayName);
   await getD1().prepare(`UPDATE streamers
-    SET display_name = ?, slug = ?, cooldown_seconds = ?, media_display_seconds = ?, text_display_seconds = ?, overlay_position = ?, overlay_media_width = ?, overlay_media_height = ?, overlay_animation = ?, tts_voice = ?, updated_at = ?
+    SET display_name = ?, slug = ?, cooldown_seconds = ?, media_display_seconds = ?, text_display_seconds = ?, overlay_position = ?, overlay_media_width = ?, overlay_media_height = ?, overlay_text_width = ?, overlay_text_height = ?, overlay_text_font_size = ?, overlay_animation = ?, tts_voice = ?, updated_at = ?
     WHERE id = ?`)
-    .bind(input.displayName, normalizeSlug(input.slug), input.cooldownSeconds, input.mediaDisplaySeconds, input.textDisplaySeconds, input.overlayPosition, input.overlayMediaWidth, input.overlayMediaHeight, input.overlayAnimation, input.ttsVoice, Date.now(), streamer.id).run();
+    .bind(input.displayName, normalizeSlug(input.slug), input.cooldownSeconds, input.mediaDisplaySeconds, input.textDisplaySeconds, input.overlayPosition, input.overlayMediaWidth, input.overlayMediaHeight, input.overlayTextWidth, input.overlayTextHeight, input.overlayTextFontSize, input.overlayAnimation, input.ttsVoice, Date.now(), streamer.id).run();
   return getStreamerByOwner(ownerUserId);
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render(path = "/") {
@@ -32,4 +33,11 @@ test("renders the streamer sign-in page", async () => {
   assert.match(html, /name="password"/);
   assert.doesNotMatch(html, /Twitch Client|api\/twitch/i);
   assert.doesNotMatch(html, /SSH-туннель|\.env|Открыть демо без входа/);
+});
+
+test("keeps the overlay alive until speech ends and clamps long text", async () => {
+  const overlaySource = await readFile(new URL("../app/OverlayPlayer.tsx", import.meta.url), "utf8");
+  assert.match(overlaySource, /Promise\.all\(\[speak\(text, voicePreset\), wait\(minimumMs\)\]\)/);
+  assert.doesNotMatch(overlaySource, /Promise\.race\(\[speak\(/);
+  assert.match(overlaySource, /WebkitLineClamp: visibleMessageLines/);
 });

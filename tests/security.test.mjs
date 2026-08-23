@@ -55,14 +55,21 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   const { profile } = await profileResponse.json();
   assert.match(profile.slug, /^[a-z0-9_-]{3,40}$/);
   assert.equal(profile.ttsVoice, "system");
+  assert.equal(profile.overlayTextWidth, 480);
+  assert.equal(profile.overlayTextHeight, 160);
+  assert.equal(profile.overlayTextFontSize, 28);
 
   const changedVoice = await call("/api/profile", {
     method: "POST",
     headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
-    body: JSON.stringify({ ...profile, ttsVoice: "deep-male" }),
+    body: JSON.stringify({ ...profile, ttsVoice: "deep-male", overlayTextWidth: 620, overlayTextHeight: 210, overlayTextFontSize: 36 }),
   });
   assert.equal(changedVoice.status, 200);
-  assert.equal((await changedVoice.json()).profile.ttsVoice, "deep-male");
+  const changedProfile = (await changedVoice.json()).profile;
+  assert.equal(changedProfile.ttsVoice, "deep-male");
+  assert.equal(changedProfile.overlayTextWidth, 620);
+  assert.equal(changedProfile.overlayTextHeight, 210);
+  assert.equal(changedProfile.overlayTextFontSize, 36);
 
   const invalidVoice = await call("/api/profile", {
     method: "POST",
@@ -70,6 +77,13 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
     body: JSON.stringify({ ...profile, ttsVoice: "untrusted-voice" }),
   });
   assert.equal(invalidVoice.status, 400);
+
+  const invalidTextSize = await call("/api/profile", {
+    method: "POST",
+    headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
+    body: JSON.stringify({ ...profile, overlayTextWidth: 199 }),
+  });
+  assert.equal(invalidTextSize.status, 400);
 
   const hostileProfile = await call("/api/profile", {
     method: "POST",
@@ -120,7 +134,11 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
 
   const overlayPoll = await call(`/api/alerts?token=${encodeURIComponent(profile.overlayToken)}&after=0`);
   assert.equal(overlayPoll.status, 200);
-  assert.equal((await overlayPoll.json()).settings.ttsVoice, "deep-male");
+  const overlaySettings = (await overlayPoll.json()).settings;
+  assert.equal(overlaySettings.ttsVoice, "deep-male");
+  assert.equal(overlaySettings.overlayTextWidth, 620);
+  assert.equal(overlaySettings.overlayTextHeight, 210);
+  assert.equal(overlaySettings.overlayTextFontSize, 36);
 
   const spoofedSecondAlert = await call("/api/alerts", {
     method: "POST",

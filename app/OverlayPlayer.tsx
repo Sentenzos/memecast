@@ -12,6 +12,9 @@ type OverlaySettings = {
   overlayPosition: "bottom-right" | "bottom-left" | "top-right" | "top-left" | "center";
   overlayMediaWidth: number;
   overlayMediaHeight: number;
+  overlayTextWidth: number;
+  overlayTextHeight: number;
+  overlayTextFontSize: number;
   overlayAnimation: "pop" | "slide" | "zoom" | "bounce" | "glitch";
   ttsVoice: TtsVoicePreset;
 };
@@ -34,7 +37,7 @@ export function OverlayPlayer({ token }: { token: string }) {
   const [{ active }, dispatch] = useReducer(overlayReducer, { queue: [], active: null });
   const [settings, setSettings] = useReducer(
     (current: OverlaySettings, next: Partial<OverlaySettings>) => ({ ...current, ...next }),
-    { mediaDisplaySeconds: 5, textDisplaySeconds: 5, overlayPosition: "bottom-right", overlayMediaWidth: 360, overlayMediaHeight: 300, overlayAnimation: "pop", ttsVoice: "system" },
+    { mediaDisplaySeconds: 5, textDisplaySeconds: 5, overlayPosition: "bottom-right", overlayMediaWidth: 360, overlayMediaHeight: 300, overlayTextWidth: 480, overlayTextHeight: 160, overlayTextFontSize: 28, overlayAnimation: "pop", ttsVoice: "system" },
   );
   const [readyAlertId, setReadyAlertId] = useState<string | null>(null);
   const cursor = useRef(0);
@@ -104,7 +107,7 @@ export function OverlayPlayer({ token }: { token: string }) {
         const display = wait(settings.mediaDisplaySeconds * 1000);
         if (hasMessageSound(alert.meme)) await playMessageSound();
         if (alert.message) {
-          await Promise.all([display, Promise.race([speak(alert.message, settings.ttsVoice), wait(settings.textDisplaySeconds * 1000)])]);
+          await Promise.all([display, keepTextVisibleUntilSpeechEnds(alert.message, settings.ttsVoice, settings.textDisplaySeconds * 1000)]);
         } else {
           await display;
         }
@@ -119,7 +122,7 @@ export function OverlayPlayer({ token }: { token: string }) {
         await wait(alert.meme.sound === "video" ? 500 : 3600);
       }
       if (alert.message) {
-        await Promise.race([speak(alert.message, settings.ttsVoice), wait(settings.textDisplaySeconds * 1000)]);
+        await keepTextVisibleUntilSpeechEnds(alert.message, settings.ttsVoice, settings.textDisplaySeconds * 1000);
       }
       finish();
     }
@@ -156,6 +159,10 @@ export function OverlayPlayer({ token }: { token: string }) {
 
   const waitsForPlayableMedia = Boolean(active?.meme.mediaUrl && active.meme.mediaType !== "image");
   const mediaReady = !active || !waitsForPlayableMedia || readyAlertId === active.id;
+  const senderHeight = active?.viewerName ? 19 : 0;
+  const availableMessageHeight = Math.max(12, settings.overlayTextHeight - 26 - senderHeight);
+  const visibleFontSize = Math.max(10, Math.min(settings.overlayTextFontSize, Math.floor(availableMessageHeight / 1.12)));
+  const visibleMessageLines = Math.max(1, Math.floor(availableMessageHeight / (visibleFontSize * 1.12)));
 
   return (
     <main className="overlay-stage" aria-live="assertive">
@@ -175,9 +182,12 @@ export function OverlayPlayer({ token }: { token: string }) {
             <div className="overlay-sticker"><span aria-hidden="true">{active.meme.emoji}</span></div>
           )}
           {active.message || active.viewerName || !active.meme.mediaUrl ? (
-            <div className={`overlay-text ${!active.message && active.viewerName ? "overlay-sender-only" : ""}`}>
+            <div
+              className={`overlay-text ${!active.message && active.viewerName ? "overlay-sender-only" : ""}`}
+              style={active.message ? { width: `${settings.overlayTextWidth}px`, height: `${settings.overlayTextHeight}px` } : undefined}
+            >
               {active.viewerName ? <span>{active.viewerName}</span> : null}
-              {active.message ? <strong>{active.message}</strong> : !active.meme.mediaUrl ? <strong>{active.meme.title}</strong> : null}
+              {active.message ? <strong style={{ fontSize: `${visibleFontSize}px`, WebkitLineClamp: visibleMessageLines }}>{active.message}</strong> : !active.meme.mediaUrl ? <strong>{active.meme.title}</strong> : null}
             </div>
           ) : null}
         </div>
@@ -205,6 +215,10 @@ async function markAlertState(token: string, alertId: string, state: "started" |
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function keepTextVisibleUntilSpeechEnds(text: string, voicePreset: TtsVoicePreset, minimumMs: number) {
+  await Promise.all([speak(text, voicePreset), wait(minimumMs)]);
 }
 
 function mediaPromise(element: HTMLMediaElement, fallbackMs: number, onPlaying?: () => void) {
@@ -277,8 +291,16 @@ function speak(text: string, voicePreset: TtsVoicePreset) {
     }
     const utterance = new SpeechSynthesisUtterance(text);
     configureSpeechUtterance(utterance, synthesis.getVoices(), voicePreset, /[а-яё]/i.test(text) ? "ru-RU" : "en-US");
-    utterance.onend = () => resolve();
-    utterance.onerror = () => resolve();
+    let settled = false;
+    const watchdog = window.setTimeout(complete, Math.min(120000, Math.max(30000, text.length * 600)));
+    function complete() {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(watchdog);
+      resolve();
+    }
+    utterance.onend = complete;
+    utterance.onerror = complete;
     synthesis.cancel();
     synthesis.speak(utterance);
   });

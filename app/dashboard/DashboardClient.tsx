@@ -15,6 +15,9 @@ type Profile = {
   overlayPosition: "bottom-right" | "bottom-left" | "top-right" | "top-left" | "center";
   overlayMediaWidth: number;
   overlayMediaHeight: number;
+  overlayTextWidth: number;
+  overlayTextHeight: number;
+  overlayTextFontSize: number;
   overlayAnimation: "pop" | "slide" | "zoom" | "bounce" | "glitch";
   ttsVoice: TtsVoicePreset;
   overlayToken: string;
@@ -145,6 +148,9 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
           overlayPosition: result.profile.overlayPosition,
           overlayMediaWidth: result.profile.overlayMediaWidth,
           overlayMediaHeight: result.profile.overlayMediaHeight,
+          overlayTextWidth: result.profile.overlayTextWidth,
+          overlayTextHeight: result.profile.overlayTextHeight,
+          overlayTextFontSize: result.profile.overlayTextFontSize,
           overlayAnimation: result.profile.overlayAnimation,
           ttsVoice: result.profile.ttsVoice,
         });
@@ -535,9 +541,12 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
             <label>Ник на странице<input value={profile.displayName} onChange={(e) => setProfile({ ...profile, displayName: e.target.value.slice(0, 40) })} /></label>
             <label>Таймаут между мемами<div className="range-row"><input type="range" min="5" max="300" step="5" value={profile.cooldownSeconds} onChange={(e) => setProfile({ ...profile, cooldownSeconds: Number(e.target.value) })} /><strong>{profile.cooldownSeconds} сек.</strong></div></label>
             <label>Медиа в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.mediaDisplaySeconds} onChange={(e) => setProfile({ ...profile, mediaDisplaySeconds: Number(e.target.value) })} /><strong>{profile.mediaDisplaySeconds} сек.</strong></div></label>
-            <label>Текст в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.textDisplaySeconds} onChange={(e) => setProfile({ ...profile, textDisplaySeconds: Number(e.target.value) })} /><strong>{profile.textDisplaySeconds} сек.</strong></div></label>
+            <label>Минимальное время текста в OBS<div className="range-row"><input type="range" min="1" max="30" step="1" value={profile.textDisplaySeconds} onChange={(e) => setProfile({ ...profile, textDisplaySeconds: Number(e.target.value) })} /><strong>{profile.textDisplaySeconds} сек.</strong></div></label>
             <label>Ширина медиа в OBS<div className="range-row"><input type="range" min="120" max="900" step="10" value={profile.overlayMediaWidth} onChange={(e) => setProfile({ ...profile, overlayMediaWidth: Number(e.target.value) })} /><strong>{profile.overlayMediaWidth}px</strong></div></label>
             <label>Высота медиа в OBS<div className="range-row"><input type="range" min="120" max="700" step="10" value={profile.overlayMediaHeight} onChange={(e) => setProfile({ ...profile, overlayMediaHeight: Number(e.target.value) })} /><strong>{profile.overlayMediaHeight}px</strong></div></label>
+            <label>Ширина блока с текстом<div className="range-row"><input type="range" min="200" max="1000" step="10" value={profile.overlayTextWidth} onChange={(e) => setProfile({ ...profile, overlayTextWidth: Number(e.target.value) })} /><strong>{profile.overlayTextWidth}px</strong></div></label>
+            <label>Высота блока с текстом<div className="range-row"><input type="range" min="70" max="500" step="10" value={profile.overlayTextHeight} onChange={(e) => setProfile({ ...profile, overlayTextHeight: Number(e.target.value) })} /><strong>{profile.overlayTextHeight}px</strong></div></label>
+            <label>Размер шрифта сообщения<div className="range-row"><input type="range" min="14" max="64" step="1" value={profile.overlayTextFontSize} onChange={(e) => setProfile({ ...profile, overlayTextFontSize: Number(e.target.value) })} /><strong>{profile.overlayTextFontSize}px</strong></div></label>
             <label>Позиция мемов в OBS<div className="position-grid" role="radiogroup" aria-label="Позиция мемов в OBS">
               {[
                 ["top-left", "↖"],
