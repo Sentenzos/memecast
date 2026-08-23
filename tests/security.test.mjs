@@ -154,10 +154,17 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
 
   const tunneledAdminLogin = await call("/api/auth/login", {
     method: "POST",
-    headers: { origin: "http://127.0.0.1:18080", "x-real-ip": "127.0.0.1" },
+    headers: { origin: "http://127.0.0.1:18080", "sec-fetch-site": "cross-site", "x-real-ip": "127.0.0.1" },
     body: new URLSearchParams({ login: "security-admin", password: "security-test-credential-42" }),
   });
   assert.equal(tunneledAdminLogin.status, 303);
+
+  const hostileTunnelOrigin = await call("/api/auth/login", {
+    method: "POST",
+    headers: { origin: "https://attacker.example", "sec-fetch-site": "cross-site", "x-real-ip": "127.0.0.1" },
+    body: new URLSearchParams({ login: "security-admin", password: "security-test-credential-42" }),
+  });
+  assert.equal(hostileTunnelOrigin.status, 403);
   process.env.ADMIN_LOCAL_ONLY = "false";
 
   const caddy = await readFile(resolve("Caddyfile"), "utf8");
@@ -168,4 +175,7 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   assert.match(compose, /read_only:\s*true/);
   assert.match(compose, /cap_drop:\s*\r?\n\s*- ALL/);
   assert.match(compose, /127\.0\.0\.1:8081:8081/);
+  const notificationSound = await readFile(resolve("public/meme-notification.mp3"));
+  assert.ok(notificationSound.byteLength > 1000);
+  assert.ok(notificationSound.subarray(0, 3).toString("ascii") === "ID3" || notificationSound[0] === 0xff);
 });

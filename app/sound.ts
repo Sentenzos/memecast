@@ -6,55 +6,13 @@ function audioContextClass() {
     (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 }
 
-let messageSoundUrl: string | null = null;
 let messageAudio: HTMLAudioElement | null = null;
-
-function createMessageSoundUrl() {
-  if (messageSoundUrl) return messageSoundUrl;
-  const sampleRate = 24000;
-  const duration = .42;
-  const samples = Math.ceil(sampleRate * duration);
-  const buffer = new ArrayBuffer(44 + samples * 2);
-  const view = new DataView(buffer);
-  const writeText = (offset: number, value: string) => {
-    for (let index = 0; index < value.length; index += 1) view.setUint8(offset + index, value.charCodeAt(index));
-  };
-
-  writeText(0, "RIFF");
-  view.setUint32(4, 36 + samples * 2, true);
-  writeText(8, "WAVE");
-  writeText(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeText(36, "data");
-  view.setUint32(40, samples * 2, true);
-
-  const tone = (time: number, start: number, length: number, frequency: number) => {
-    const local = time - start;
-    if (local < 0 || local > length) return 0;
-    const attack = Math.min(1, local / .012);
-    const release = Math.min(1, (length - local) / .075);
-    return Math.sin(Math.PI * 2 * frequency * local) * attack * release;
-  };
-  for (let index = 0; index < samples; index += 1) {
-    const time = index / sampleRate;
-    const value = (tone(time, 0, .2, 659.25) + tone(time, .15, .24, 880)) * .38;
-    view.setInt16(44 + index * 2, Math.round(Math.max(-1, Math.min(1, value)) * 32767), true);
-  }
-
-  messageSoundUrl = URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
-  return messageSoundUrl;
-}
+const MESSAGE_SOUND_URL = "/meme-notification.mp3";
 
 export function preloadMessageSound() {
   if (typeof window === "undefined") return;
   if (!messageAudio) {
-    messageAudio = new Audio(createMessageSoundUrl());
+    messageAudio = new Audio(MESSAGE_SOUND_URL);
     messageAudio.preload = "auto";
     messageAudio.load();
   }

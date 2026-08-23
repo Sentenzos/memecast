@@ -4,11 +4,24 @@ export class RequestBodyTooLargeError extends Error {}
 
 export function rejectCrossOriginRequest(request: Request) {
   const fetchSite = request.headers.get("sec-fetch-site")?.toLowerCase();
-  if (fetchSite === "cross-site") {
+  const supplied = request.headers.get("origin");
+  let suppliedUrl: URL | null = null;
+  if (supplied) {
+    try {
+      suppliedUrl = new URL(supplied);
+    } catch {
+      return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
+    }
+  }
+  const tunneledAdminOrigin = Boolean(
+    suppliedUrl &&
+    adminLocalOnlyEnabled() &&
+    isLoopbackIp(clientIp(request)) &&
+    isLoopbackHostname(suppliedUrl.hostname),
+  );
+  if (fetchSite === "cross-site" && !tunneledAdminOrigin) {
     return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
   }
-
-  const supplied = request.headers.get("origin");
   if (!supplied) return null;
   const allowed = new Set<string>();
   try {
@@ -24,13 +37,7 @@ export function rejectCrossOriginRequest(request: Request) {
       // Production startup validates APP_URL. Ignore an invalid value in build-time tests.
     }
   }
-  try {
-    const suppliedUrl = new URL(supplied);
-    const tunneledAdminOrigin = adminLocalOnlyEnabled() && isLoopbackIp(clientIp(request)) && isLoopbackHostname(suppliedUrl.hostname);
-    if (!allowed.has(suppliedUrl.origin) && !tunneledAdminOrigin) {
-      return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
-    }
-  } catch {
+  if (!suppliedUrl || (!allowed.has(suppliedUrl.origin) && !tunneledAdminOrigin)) {
     return Response.json({ error: "Запрос с другого сайта запрещён" }, { status: 403 });
   }
   return null;
