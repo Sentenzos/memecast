@@ -154,7 +154,7 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
 
   const tunneledAdminLogin = await call("/api/auth/login", {
     method: "POST",
-    headers: { origin: "http://127.0.0.1:8080", "x-real-ip": "127.0.0.1" },
+    headers: { origin: "http://127.0.0.1:18080", "x-real-ip": "127.0.0.1" },
     body: new URLSearchParams({ login: "security-admin", password: "security-test-credential-42" }),
   });
   assert.equal(tunneledAdminLogin.status, 303);
@@ -163,7 +163,9 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   const caddy = await readFile(resolve("Caddyfile"), "utf8");
   assert.match(caddy, /Content-Security-Policy/);
   assert.match(caddy, /max_size 256KB/);
+  assert.match(caddy, /:8081[\s\S]*header_up X-Real-IP 127\.0\.0\.1/);
   const compose = await readFile(resolve("docker-compose.yml"), "utf8");
   assert.match(compose, /read_only:\s*true/);
   assert.match(compose, /cap_drop:\s*\r?\n\s*- ALL/);
+  assert.match(compose, /127\.0\.0\.1:8081:8081/);
 });

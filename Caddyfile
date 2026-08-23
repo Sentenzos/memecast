@@ -1,4 +1,4 @@
-:80 {
+(security) {
   encode zstd gzip
 
   header {
@@ -13,6 +13,10 @@
 
   @private path /login /dashboard* /api/admin/* /api/profile /api/auth/*
   header @private Cache-Control "no-store"
+}
+
+:80 {
+  import security
 
   @media_upload {
     path /api/admin/media /api/admin/media-upload
@@ -35,6 +39,36 @@
     }
     reverse_proxy app:3000 {
       header_up X-Real-IP {remote_host}
+    }
+  }
+}
+
+# This listener is published only on the VPS loopback interface. It gives the
+# application an explicit trusted signal for administrative SSH tunnels.
+:8081 {
+  import security
+
+  @media_upload {
+    path /api/admin/media /api/admin/media-upload
+    method POST
+    header Content-Type multipart/form-data*
+  }
+
+  handle @media_upload {
+    request_body {
+      max_size 25MB
+    }
+    reverse_proxy app:3000 {
+      header_up X-Real-IP 127.0.0.1
+    }
+  }
+
+  handle {
+    request_body {
+      max_size 256KB
+    }
+    reverse_proxy app:3000 {
+      header_up X-Real-IP 127.0.0.1
     }
   }
 }
