@@ -44,14 +44,25 @@ test("hides alert visuals on schedule while speech finishes and fits long text i
   assert.doesNotMatch(overlaySource, /Promise\.race\(\[speak\(/);
   assert.match(overlaySource, /viewport\.width - 88/);
   assert.match(overlaySource, /width: `\$\{visibleAlertWidth\}px`/);
+  assert.match(overlaySource, /maxWidth: `\$\{visibleTextWidth\}px`/);
+  assert.match(overlaySource, /maxHeight: `\$\{visibleTextHeight\}px`/);
+  assert.doesNotMatch(overlaySource, /width: `\$\{visibleTextWidth\}px`/);
   assert.match(overlaySource, /element\.scrollHeight <= element\.clientHeight/);
   assert.match(overlaySource, /trimEnd\(\)\}…/);
+});
+
+test("sizes the text card to its content and aligns text to the left", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /\.overlay-text\s*\{[^}]*width: fit-content;[^}]*height: fit-content;/s);
+  assert.match(styles, /\.overlay-text\s*\{[^}]*padding: 13px 16px;[^}]*text-align: left;/s);
+  assert.doesNotMatch(styles, /\.overlay-pos-[^{]+ \.overlay-text\s*\{\s*text-align:/);
 });
 
 test("plays the notification sound for text-only alerts", async () => {
   const overlaySource = await readFile(new URL("../app/OverlayPlayer.tsx", import.meta.url), "utf8");
   const soundSource = await readFile(new URL("../app/sound.ts", import.meta.url), "utf8");
   assert.match(overlaySource, /alert\.meme\.id\.startsWith\("text:"\)/);
+  assert.match(overlaySource, /!isTextOnlyAlert \? \(/);
   assert.match(soundSource, /meme-notification\.mp3\?v=hadouken-20260828/);
   assert.match(soundSource, /setTimeout\(finish, 2000\)/);
 });

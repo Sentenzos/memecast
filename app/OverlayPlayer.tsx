@@ -174,6 +174,7 @@ export function OverlayPlayer({ token }: { token: string }) {
 
   const waitsForPlayableMedia = Boolean(active?.meme.mediaUrl && active.meme.mediaType !== "image");
   const mediaReady = !active || !waitsForPlayableMedia || readyAlertId === active.id;
+  const isTextOnlyAlert = Boolean(active?.meme.id.startsWith("text:"));
   const visibleTextWidth = Math.min(settings.overlayTextWidth, Math.max(1, viewport.width - 88));
   const visibleTextHeight = Math.min(settings.overlayTextHeight, Math.max(1, viewport.height - 88));
   const visibleAlertWidth = Math.min(Math.max(visibleTextWidth, settings.overlayMediaWidth), Math.max(1, viewport.width - 88));
@@ -200,13 +201,13 @@ export function OverlayPlayer({ token }: { token: string }) {
                 <video ref={videoRef} className="overlay-media" src={active.meme.mediaUrl} autoPlay playsInline preload="auto" onCanPlay={() => setReadyAlertId(active.id)} onPlaying={() => setReadyAlertId(active.id)} style={{ maxWidth: `${settings.overlayMediaWidth}px`, maxHeight: `${settings.overlayMediaHeight}px` }} />
               ) : null}
             </div>
-          ) : (
+          ) : !isTextOnlyAlert ? (
             <div className="overlay-sticker"><span aria-hidden="true">{active.meme.emoji}</span></div>
-          )}
+          ) : null}
           {active.message || active.viewerName || !active.meme.mediaUrl ? (
             <div
               className={`overlay-text ${!active.message && active.viewerName ? "overlay-sender-only" : ""}`}
-              style={active.message ? { width: `${visibleTextWidth}px`, height: `${visibleTextHeight}px` } : undefined}
+              style={active.message ? { maxWidth: `${visibleTextWidth}px`, maxHeight: `${visibleTextHeight}px` } : undefined}
             >
               {active.viewerName ? <span>{active.viewerName}</span> : null}
               {active.message ? (
