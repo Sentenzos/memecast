@@ -129,6 +129,8 @@ export function OverlayPlayer({ token }: { token: string }) {
 
       if (alert.meme.mediaUrl) {
         await playMedia(alert.meme.mediaUrl, alert.meme.mediaType ?? "video");
+      } else if (alert.meme.id.startsWith("text:")) {
+        await playMessageSound();
       } else {
         playMemeSound(alert.meme.sound);
         await wait(alert.meme.sound === "video" ? 500 : 3600);

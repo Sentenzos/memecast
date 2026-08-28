@@ -47,3 +47,11 @@ test("hides alert visuals on schedule while speech finishes and fits long text i
   assert.match(overlaySource, /element\.scrollHeight <= element\.clientHeight/);
   assert.match(overlaySource, /trimEnd\(\)\}…/);
 });
+
+test("plays the notification sound for text-only alerts", async () => {
+  const overlaySource = await readFile(new URL("../app/OverlayPlayer.tsx", import.meta.url), "utf8");
+  const soundSource = await readFile(new URL("../app/sound.ts", import.meta.url), "utf8");
+  assert.match(overlaySource, /alert\.meme\.id\.startsWith\("text:"\)/);
+  assert.match(soundSource, /meme-notification\.mp3\?v=hadouken-20260828/);
+  assert.match(soundSource, /setTimeout\(finish, 2000\)/);
+});

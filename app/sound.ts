@@ -7,7 +7,7 @@ function audioContextClass() {
 }
 
 let messageAudio: HTMLAudioElement | null = null;
-const MESSAGE_SOUND_URL = "/meme-notification.mp3";
+const MESSAGE_SOUND_URL = "/meme-notification.mp3?v=hadouken-20260828";
 
 export function preloadMessageSound() {
   if (typeof window === "undefined") return;
@@ -38,7 +38,7 @@ export function playMessageSound() {
     };
     audio.addEventListener("ended", finish, { once: true });
     audio.addEventListener("error", finish, { once: true });
-    const timer = window.setTimeout(finish, 1200);
+    const timer = window.setTimeout(finish, 2000);
     void audio.play().catch(finish);
   });
 }
