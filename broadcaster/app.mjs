@@ -14,6 +14,7 @@ let metadataTimer = null;
 let config = await loadConfig();
 let lastArtworkSource = "";
 let cachedArtwork = null;
+let lastPublishedTrack = "";
 let state = { running: false, message: "Готов к настройке", ffmpegLog: "", startedAt: null };
 
 const server = createServer(async (request, response) => {
@@ -108,6 +109,7 @@ async function publishMetadata(allowLive) {
   const timeline = session?.timeline_properties ?? {};
   const artwork = session ? await artworkDataUrl(media.Thumbnail) : null;
   const live = Boolean(allowLive && ffmpeg && session && media.Title && (media.Artist || media.AlbumArtist));
+  const trackKey = [media.Title, media.Artist || media.AlbumArtist, media.AlbumTitle].map((value) => String(value || "")).join("\u0000");
   const response = await fetch(new URL("/api/broadcast-state", config.siteUrl), {
     method: "POST",
     headers: { authorization: `Bearer ${config.overlayToken}`, "content-type": "application/json" },
@@ -116,7 +118,7 @@ async function publishMetadata(allowLive) {
       title: media.Title || null,
       artist: media.Artist || media.AlbumArtist || null,
       album: media.AlbumTitle || null,
-      artworkDataUrl: artwork,
+      artworkDataUrl: live && trackKey !== lastPublishedTrack ? artwork : null,
       positionMs: Number(timeline.Position || 0),
       durationMs: Number(timeline.EndTime || timeline.MaxSeekTime || 0),
       sourceUpdatedAt: Date.now(),
@@ -124,14 +126,21 @@ async function publishMetadata(allowLive) {
     signal: AbortSignal.timeout(3_000),
   });
   if (!response.ok) throw new Error(`MemeCast API: HTTP ${response.status}`);
+  lastPublishedTrack = live ? trackKey : "";
 }
 
 async function artworkDataUrl(source) {
   if (!source || typeof source !== "string") return null;
-  if (source === lastArtworkSource) return null;
+  if (source === lastArtworkSource) return cachedArtwork;
   lastArtworkSource = source;
   cachedArtwork = null;
   if (/^data:image\/(jpeg|png|webp);base64,/i.test(source) && source.length < 180 * 1024) return (cachedArtwork = source);
+  const compactBase64 = source.replace(/\s+/g, "");
+  if (compactBase64.length >= 16 && compactBase64.length < 180 * 1024 && /^[a-z0-9+/]+={0,2}$/i.test(compactBase64)) {
+    const bytes = Buffer.from(compactBase64, "base64");
+    const mimeType = imageMimeType(bytes);
+    if (mimeType && bytes.byteLength <= 130 * 1024) return (cachedArtwork = `data:${mimeType};base64,${compactBase64}`);
+  }
   try {
     const parsed = new URL(source);
     if (!new Set(["127.0.0.1", "localhost", "[::1]"]).has(parsed.hostname)) return null;
@@ -143,6 +152,13 @@ async function artworkDataUrl(source) {
     cachedArtwork = `data:${contentType.split(";")[0]};base64,${Buffer.from(bytes).toString("base64")}`;
     return cachedArtwork;
   } catch { return null; }
+}
+
+function imageMimeType(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") return "image/webp";
+  return null;
 }
 
 async function listAudioDevices(ffmpegPath) {

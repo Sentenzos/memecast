@@ -57,6 +57,10 @@ a { color: inherit; text-decoration: none; }
 .music-copy strong, .music-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.music-copy strong { font-size: 18px; letter-spacing: -.02em; }.music-copy small { color: #a9a79f; font-size: 11px; font-weight: 750; }
 .music-progress { width: min(440px, 100%); height: 3px; margin-top: 5px; overflow: hidden; border-radius: 99px; background: rgba(255,255,255,.12); }.music-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--purple), var(--lime)); transition: width 1s linear; }
 .music-status { position: relative; z-index: 1; display: flex; align-items: center; gap: 9px; padding: 8px 11px; border: 1px solid rgba(255,255,255,.11); border-radius: 999px; color: #b9b7b0; font: 850 9px/1 ui-monospace, monospace; white-space: nowrap; }
+.music-controls { position: relative; z-index: 1; display: grid; justify-items: stretch; gap: 7px; }
+.music-volume { display: grid; grid-template-columns: 18px minmax(74px, 126px) 31px; gap: 7px; align-items: center; color: #b9b7b0; font: 800 8px/1 ui-monospace, monospace; }
+.music-volume > span { font-size: 13px; filter: grayscale(1); }.music-volume output { text-align: right; }
+.music-volume input { width: 100%; height: 3px; accent-color: var(--lime); cursor: pointer; }
 .music-waves { height: 14px; display: flex; align-items: center; gap: 2px; }.music-waves i { width: 2px; height: 4px; border-radius: 2px; background: currentColor; }.music-waves-active { color: var(--lime); }.music-waves-active i { animation: music-wave .8s ease-in-out infinite alternate; }.music-waves-active i:nth-child(2) { animation-delay: -.3s; }.music-waves-active i:nth-child(3) { animation-delay: -.55s; }
 .music-error { position: absolute; right: 16px; bottom: 4px; margin: 0; color: #ff9bb2; font-size: 8px; font-weight: 800; }
 @keyframes music-spin { to { transform: rotate(360deg); } } @keyframes music-wave { from { height: 4px; } to { height: 14px; } }
@@ -469,7 +473,7 @@ html:has(.overlay-stage), body:has(.overlay-stage) { background: transparent !im
   .topbar { width: min(100% - 28px, 1180px); height: 44px; }
   .brand { font-size: 13px; }.brand-mark { width: 28px; height: 28px; }.login-link { font-size: 0; }.login-link span { font-size: 18px; }
   .music-broadcast { width: min(100% - 28px, 1180px); min-height: 82px; margin-top: 10px; padding: 10px; grid-template-columns: 56px 42px minmax(0, 1fr); gap: 10px; box-shadow: 4px 4px 0 var(--lime); }
-  .music-art { width: 56px; height: 56px; }.music-play { width: 40px; height: 40px; }.music-copy strong { font-size: 14px; }.music-copy small { font-size: 9px; }.music-status { display: none; }.music-broadcast::after { display: none; }.music-error { right: 10px; bottom: 2px; max-width: calc(100% - 128px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .music-art { width: 56px; height: 56px; }.music-play { width: 40px; height: 40px; }.music-copy strong { font-size: 14px; }.music-copy small { font-size: 9px; }.music-controls { grid-column: 2 / -1; grid-template-columns: 1fr; }.music-status { display: none; }.music-volume { grid-template-columns: 18px minmax(80px, 1fr) 31px; }.music-broadcast::after { display: none; }.music-error { right: 10px; bottom: 2px; max-width: calc(100% - 128px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .channel-hero { width: min(100% - 28px, 1180px); grid-template-columns: 1fr; min-height: 0; gap: 10px; align-content: center; padding: 14px 0 18px; }
   .avatar-wrap { width: 58px; height: 58px; }.avatar { width: 54px; height: 54px; font-size: 18px; box-shadow: 4px 4px 0 var(--lime); }.live-dot { right: -4px; padding: 3px 6px; }
   .channel-copy h1 { font-size: 34px; }.channel-copy p { font-size: 13px; }

@@ -77,8 +77,12 @@ test("shows a live music player backed by the broadcast API", async () => {
   assert.match(playerSource, /api\/broadcast-state/);
   assert.match(playerSource, /new Hls/);
   assert.match(playerSource, /broadcast\.hlsUrl/);
+  assert.match(playerSource, /aria-label="Громкость музыки"/);
+  assert.match(playerSource, /audioRef\.current\.volume = volume/);
   assert.match(dashboardSource, /MemeCast Broadcaster/);
   assert.match(dashboardSource, /Токен метаданных/);
   assert.ok(Number(relayConfig.match(/^hlsSegmentCount:\s*(\d+)/m)?.[1]) >= 7);
   assert.match(broadcasterSource, /redactFfmpegLog/);
+  assert.match(broadcasterSource, /compactBase64/);
+  assert.match(broadcasterSource, /imageMimeType/);
 });

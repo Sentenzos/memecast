@@ -421,7 +421,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
               <div className="broadcaster-field"><span>Канал</span><div className="url-box"><code>{profile.slug}</code><button onClick={() => void copy(profile.slug, "Канал")} type="button">Копировать</button></div></div>
               <div className="broadcaster-field"><span>Токен метаданных</span><div className="url-box"><code>{profile.overlayToken}</code><button onClick={() => void copy(profile.overlayToken, "Токен")} type="button">Копировать</button></div></div>
             </div>
-            <small className="secret-note">SRT-логин, пароль и ключ шифрования возьми из настроек MemeCast на VPS. Токен тоже держи в секрете.</small>
+            <small className="secret-note">SRT-логин, пароль и ключ нужны только твоему Broadcaster для публикации. Зрители подключаются без авторизации. Токен тоже держи в секрете.</small>
           </article>
         </section>
 

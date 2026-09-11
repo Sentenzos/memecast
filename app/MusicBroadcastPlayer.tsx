@@ -23,6 +23,7 @@ export function MusicBroadcastPlayer({ slug }: { slug: string }) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState("");
   const [clock, setClock] = useState(0);
+  const [volume, setVolume] = useState(0.8);
   const audioRef = useRef<HTMLAudioElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
@@ -68,6 +69,24 @@ export function MusicBroadcastPlayer({ slug }: { slug: string }) {
   }, []);
 
   useEffect(() => () => hlsRef.current?.destroy(), []);
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(`memecast-volume:${slug}`);
+    if (stored === null) return;
+    const saved = Number(stored);
+    if (!Number.isFinite(saved) || saved < 0 || saved > 1) return;
+    const frame = window.requestAnimationFrame(() => setVolume(saved));
+    return () => window.cancelAnimationFrame(frame);
+  }, [slug]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.volume = volume;
+  }, [volume]);
+
+  function changeVolume(nextVolume: number) {
+    setVolume(nextVolume);
+    window.localStorage.setItem(`memecast-volume:${slug}`, String(nextVolume));
+  }
 
   const positionMs = useMemo(() => {
     if (!broadcast?.live) return 0;
@@ -137,9 +156,16 @@ export function MusicBroadcastPlayer({ slug }: { slug: string }) {
         <small>{broadcast.artist}{broadcast.album ? ` · ${broadcast.album}` : ""}</small>
         <div className="music-progress" aria-hidden="true"><span style={{ width: `${progress}%` }} /></div>
       </div>
-      <div className="music-status">
-        <span className={listening ? "music-waves music-waves-active" : "music-waves"}><i /><i /><i /></span>
-        {listening ? "Слушаете live" : "Нажмите Play"}
+      <div className="music-controls">
+        <div className="music-status">
+          <span className={listening ? "music-waves music-waves-active" : "music-waves"}><i /><i /><i /></span>
+          {listening ? "Слушаете live" : "Нажмите Play"}
+        </div>
+        <label className="music-volume">
+          <span aria-hidden="true">{volume === 0 ? "🔇" : volume < 0.5 ? "🔉" : "🔊"}</span>
+          <input type="range" min="0" max="1" step="0.05" value={volume} onChange={(event) => changeVolume(Number(event.target.value))} aria-label="Громкость музыки" />
+          <output>{Math.round(volume * 100)}%</output>
+        </label>
       </div>
       {error ? <p className="music-error">Поток ещё запускается. Попробуйте снова через несколько секунд.</p> : null}
     </section>
