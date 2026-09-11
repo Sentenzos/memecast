@@ -389,6 +389,7 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
         <nav aria-label="Разделы кабинета">
           <a className="nav-active" href="#links"><span>⌁</span> Обзор</a>
           <a href="#links"><span>↗</span> OBS</a>
+          <a href="#broadcaster"><span>♫</span> Радио</a>
           <a href="#library"><span>▣</span> Библиотека</a>
           <a href="#history"><span>☷</span> История</a>
           <a href="#settings"><span>◉</span> Настройки</a>
@@ -411,6 +412,16 @@ export function DashboardClient({ initialProfile, login, demoMode = false, publi
             <h2>Browser Source</h2><p>Добавь эту ссылку как источник «Браузер» размером 1920×1080.</p>
             <div className="url-box url-box-dark"><code>{overlayUrl || "Загрузка адреса…"}</code><button onClick={() => void copy(overlayUrl, "OBS-ссылка")} disabled={!origin} type="button">Копировать</button></div>
             <small className="secret-note">Не показывай эту ссылку зрителям — она управляет оверлеем.</small>
+          </article>
+          <article className="dashboard-panel panel-broadcaster" id="broadcaster">
+            <div className="panel-label"><span>02</span> LIVE-АУДИО</div>
+            <h2>MemeCast Broadcaster</h2>
+            <p>Запусти приложение на домашнем ПК, выбери виртуальный аудиовход Apple Music и вставь туда эти данные.</p>
+            <div className="broadcaster-fields">
+              <div className="broadcaster-field"><span>Канал</span><div className="url-box"><code>{profile.slug}</code><button onClick={() => void copy(profile.slug, "Канал")} type="button">Копировать</button></div></div>
+              <div className="broadcaster-field"><span>Токен метаданных</span><div className="url-box"><code>{profile.overlayToken}</code><button onClick={() => void copy(profile.overlayToken, "Токен")} type="button">Копировать</button></div></div>
+            </div>
+            <small className="secret-note">SRT-логин, пароль и ключ шифрования возьми из настроек MemeCast на VPS. Токен тоже держи в секрете.</small>
           </article>
         </section>
 

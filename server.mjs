@@ -162,6 +162,12 @@ function validateProductionConfiguration() {
   if (password.length < 16 || password === login || /replace-with|change-this|password/i.test(password)) {
     throw new Error("ADMIN_PASSWORD must be a unique password of at least 16 characters");
   }
+  for (const [name, minimum] of [["BROADCAST_PUBLISH_USER", 8], ["BROADCAST_PUBLISH_PASSWORD", 16], ["BROADCAST_SRT_PASSPHRASE", 10]]) {
+    const value = process.env[name]?.trim() || "";
+    if (value.length < minimum || value.length > 79 || !/^[a-zA-Z0-9_-]+$/.test(value) || /replace-with|change-this|password/i.test(value)) {
+      throw new Error(`${name} must be a unique value with ${minimum}-79 Latin letters, digits, _ or -`);
+    }
+  }
   const localOnlyValue = process.env.ADMIN_LOCAL_ONLY?.trim().toLowerCase();
   if (localOnlyValue && localOnlyValue !== "true" && localOnlyValue !== "false") {
     throw new Error("ADMIN_LOCAL_ONLY must be true or false");

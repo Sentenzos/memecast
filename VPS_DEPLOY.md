@@ -19,6 +19,16 @@ openssl rand -hex 24
 
 В `APP_URL` укажите публичный IP вместе с протоколом, например `http://203.0.113.10`. Выберите `ADMIN_LOGIN`, а результат второй команды вставьте в `ADMIN_PASSWORD`. Пароль должен содержать не меньше 16 символов, отличаться от логина и не использоваться на других сайтах. Это единственные данные для входа в кабинет администратора. `GIPHY_API_KEY` необязателен, если внешний поиск GIPHY не используется.
 
+Для MemeCast Broadcaster задайте три разных случайных значения из латинских букв и цифр:
+
+```dotenv
+BROADCAST_PUBLISH_USER=memecast-broadcaster
+BROADCAST_PUBLISH_PASSWORD=long_random_publish_secret
+BROADCAST_SRT_PASSPHRASE=different_random_srt_secret
+```
+
+Откройте входящий UDP-порт `8890` в firewall VPS. Домашний клиент публикует в него зашифрованный SRT-поток; посетители получают HLS через обычный адрес MemeCast `/radio/...`.
+
 Оставьте `ADMIN_LOCAL_ONLY=true`. Поскольку сайт работает по IP и обычному HTTP, этот режим не даёт передать административный пароль по незашифрованному интернет-соединению. Публичная страница зрителей и OBS при этом остаются доступны по IP.
 
 ## 3. Запуск
@@ -27,6 +37,7 @@ openssl rand -hex 24
 docker compose --env-file .env.production up -d --build
 docker compose ps
 docker compose logs -f app
+docker compose logs -f mediamtx
 ```
 
 После успешного запуска создайте на своём компьютере SSH-туннель. Команду нужно запускать в отдельном терминале и оставлять его открытым на время работы в кабинете:

@@ -1,0 +1,22 @@
+logLevel: warn
+rtsp: false
+rtmp: false
+playback: false
+api: false
+metrics: false
+pprof: false
+webrtc: false
+moq: false
+srt: true
+srtAddress: :8890
+hls: true
+hlsAddress: :8888
+hlsAllowOrigins: ["*"]
+hlsAlwaysRemux: true
+hlsVariant: lowLatency
+hlsSegmentCount: 5
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+paths:
+  all_others:

@@ -1,0 +1,13 @@
+{
+  "siteUrl": "https://memecast.example",
+  "publishHost": "memecast.example",
+  "slug": "streamer-name",
+  "overlayToken": "copy-from-memecast-dashboard",
+  "publishUser": "memecast-broadcaster",
+  "publishPassword": "same-as-BROADCAST_PUBLISH_PASSWORD-on-vps",
+  "srtPassphrase": "same-as-BROADCAST_SRT_PASSPHRASE-on-vps",
+  "audioDevice": "CABLE Output (VB-Audio Virtual Cable)",
+  "ffmpegPath": "ffmpeg",
+  "bitrateKbps": 128,
+  "smtcUrl": "http://127.0.0.1:5000/now-playing"
+}

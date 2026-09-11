@@ -58,6 +58,19 @@ export type MemeAssetRecord = {
   updated_at: number;
 };
 
+export type BroadcastStateRecord = {
+  streamer_id: string;
+  is_live: number;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  artwork_data_url: string | null;
+  position_ms: number;
+  duration_ms: number;
+  source_updated_at: number;
+  updated_at: number;
+};
+
 export function getD1() {
   return getLocalDatabase();
 }
@@ -219,6 +232,18 @@ export async function ensureDatabase() {
       updated_at INTEGER NOT NULL,
       UNIQUE(provider, provider_id)
     )`),
+    db.prepare(`CREATE TABLE IF NOT EXISTS broadcast_states (
+      streamer_id TEXT PRIMARY KEY REFERENCES streamers(id) ON DELETE CASCADE,
+      is_live INTEGER NOT NULL DEFAULT 0,
+      title TEXT,
+      artist TEXT,
+      album TEXT,
+      artwork_data_url TEXT,
+      position_ms INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      source_updated_at INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_alerts_streamer_created ON alerts(streamer_id, created_at)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_alerts_streamer_viewer_created ON alerts(streamer_id, viewer_key, created_at)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_blocked_viewers_streamer_ip ON blocked_viewers(streamer_id, ip_address)"),
@@ -278,6 +303,55 @@ export async function getStreamerByToken(token: string) {
   await ensureDatabase();
   return getD1().prepare("SELECT * FROM streamers WHERE overlay_token = ? LIMIT 1")
     .bind(token).first<StreamerRecord>();
+}
+
+export async function getBroadcastState(streamerId: string) {
+  await ensureDatabase();
+  return getD1().prepare("SELECT * FROM broadcast_states WHERE streamer_id = ? LIMIT 1")
+    .bind(streamerId).first<BroadcastStateRecord>();
+}
+
+export async function updateBroadcastState(streamerId: string, input: {
+  isLive: boolean;
+  title: string | null;
+  artist: string | null;
+  album: string | null;
+  artworkDataUrl: string | null;
+  positionMs: number;
+  durationMs: number;
+  sourceUpdatedAt: number;
+}) {
+  const now = Date.now();
+  await getD1().prepare(`INSERT INTO broadcast_states
+    (streamer_id, is_live, title, artist, album, artwork_data_url, position_ms, duration_ms, source_updated_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(streamer_id) DO UPDATE SET
+      is_live = excluded.is_live,
+      title = excluded.title,
+      artist = excluded.artist,
+      album = excluded.album,
+      artwork_data_url = CASE
+        WHEN broadcast_states.title IS NOT excluded.title OR broadcast_states.artist IS NOT excluded.artist OR broadcast_states.album IS NOT excluded.album
+          THEN excluded.artwork_data_url
+        ELSE COALESCE(excluded.artwork_data_url, broadcast_states.artwork_data_url)
+      END,
+      position_ms = excluded.position_ms,
+      duration_ms = excluded.duration_ms,
+      source_updated_at = excluded.source_updated_at,
+      updated_at = excluded.updated_at`)
+    .bind(
+      streamerId,
+      input.isLive ? 1 : 0,
+      input.title,
+      input.artist,
+      input.album,
+      input.artworkDataUrl,
+      input.positionMs,
+      input.durationMs,
+      input.sourceUpdatedAt,
+      now,
+    ).run();
+  return now;
 }
 
 export async function getStreamerByOwner(ownerUserId: string) {

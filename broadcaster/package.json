@@ -1,0 +1,8 @@
+{
+  "name": "memecast-broadcaster",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node app.mjs" },
+  "engines": { "node": ">=22.13.0" }
+}

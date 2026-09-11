@@ -33,6 +33,10 @@
     }
   }
 
+  handle /radio/* {
+    reverse_proxy mediamtx:8888
+  }
+
   handle {
     request_body {
       max_size 256KB
@@ -61,6 +65,10 @@
     reverse_proxy app:3000 {
       header_up X-Real-IP 127.0.0.1
     }
+  }
+
+  handle /radio/* {
+    reverse_proxy mediamtx:8888
   }
 
   handle {

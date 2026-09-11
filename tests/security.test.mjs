@@ -59,6 +59,26 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   assert.equal(profile.overlayTextHeight, 160);
   assert.equal(profile.overlayTextFontSize, 28);
 
+  const unauthorizedBroadcast = await call("/api/broadcast-state", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ live: true, title: "Track", artist: "Artist" }),
+  });
+  assert.equal(unauthorizedBroadcast.status, 401);
+
+  const broadcastUpdate = await call("/api/broadcast-state", {
+    method: "POST",
+    headers: { authorization: `Bearer ${profile.overlayToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ live: true, title: "Track", artist: "Artist", album: "Album", positionMs: 12_000, durationMs: 180_000, sourceUpdatedAt: Date.now() }),
+  });
+  assert.equal(broadcastUpdate.status, 200);
+  const publicBroadcast = await call(`/api/broadcast-state?slug=${encodeURIComponent(profile.slug)}`);
+  assert.equal(publicBroadcast.status, 200);
+  const broadcastState = await publicBroadcast.json();
+  assert.equal(broadcastState.live, true);
+  assert.equal(broadcastState.title, "Track");
+  assert.equal(broadcastState.hlsUrl, `/radio/${profile.slug}/index.m3u8`);
+
   const changedVoice = await call("/api/profile", {
     method: "POST",
     headers: { cookie, origin: "http://localhost", "content-type": "application/json" },
@@ -249,6 +269,11 @@ test("security controls reject cross-site writes, spoofed files and IP-header by
   assert.match(compose, /read_only:\s*true/);
   assert.match(compose, /cap_drop:\s*\r?\n\s*- ALL/);
   assert.match(compose, /127\.0\.0\.1:8081:8081/);
+  assert.match(compose, /bluenviron\/mediamtx:1\.21\.0/);
+  assert.match(compose, /8890:8890\/udp/);
+  const mediaMtx = await readFile(resolve("mediamtx.yml"), "utf8");
+  assert.match(mediaMtx, /hlsVariant: lowLatency/);
+  assert.match(mediaMtx, /srtAddress: :8890/);
   const notificationSound = await readFile(resolve("public/meme-notification.mp3"));
   assert.ok(notificationSound.byteLength > 1000);
   assert.ok(notificationSound.subarray(0, 3).toString("ascii") === "ID3" || notificationSound[0] === 0xff);

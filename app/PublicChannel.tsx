@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
 import { MemeSender } from "./MemeSender";
+import { MusicBroadcastPlayer } from "./MusicBroadcastPlayer";
 
 type Props = {
   slug: string;
@@ -19,6 +20,8 @@ export function PublicChannel({ slug, displayName, avatarUrl, cooldownSeconds }:
           </a>
           <a className="login-link" href="/dashboard">Кабинет стримера <span aria-hidden="true">↗</span></a>
         </header>
+
+        <MusicBroadcastPlayer slug={slug} />
 
         <section className="channel-hero" id="top">
           <div className="avatar-wrap">

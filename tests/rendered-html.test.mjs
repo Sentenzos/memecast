@@ -66,3 +66,15 @@ test("plays the notification sound for text-only alerts", async () => {
   assert.match(soundSource, /meme-notification\.mp3\?v=hadouken-20260828/);
   assert.match(soundSource, /setTimeout\(finish, 2000\)/);
 });
+
+test("shows a live music player backed by the broadcast API", async () => {
+  const channelSource = await readFile(new URL("../app/PublicChannel.tsx", import.meta.url), "utf8");
+  const playerSource = await readFile(new URL("../app/MusicBroadcastPlayer.tsx", import.meta.url), "utf8");
+  const dashboardSource = await readFile(new URL("../app/dashboard/DashboardClient.tsx", import.meta.url), "utf8");
+  assert.match(channelSource, /<MusicBroadcastPlayer slug=\{slug\}/);
+  assert.match(playerSource, /api\/broadcast-state/);
+  assert.match(playerSource, /new Hls/);
+  assert.match(playerSource, /broadcast\.hlsUrl/);
+  assert.match(dashboardSource, /MemeCast Broadcaster/);
+  assert.match(dashboardSource, /Токен метаданных/);
+});

@@ -46,3 +46,4 @@ yarn-error.log*
 /outputs/
 /work/
 /data/
+/broadcaster/config.json

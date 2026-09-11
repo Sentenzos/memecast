@@ -75,3 +75,16 @@ export const blockedViewers = sqliteTable("blocked_viewers", {
 }, (table) => [
   uniqueIndex("idx_blocked_viewers_streamer_ip").on(table.streamerId, table.ipAddress),
 ]);
+
+export const broadcastStates = sqliteTable("broadcast_states", {
+  streamerId: text("streamer_id").primaryKey().references(() => streamers.id, { onDelete: "cascade" }),
+  isLive: integer("is_live", { mode: "boolean" }).notNull().default(false),
+  title: text("title"),
+  artist: text("artist"),
+  album: text("album"),
+  artworkDataUrl: text("artwork_data_url"),
+  positionMs: integer("position_ms").notNull().default(0),
+  durationMs: integer("duration_ms").notNull().default(0),
+  sourceUpdatedAt: integer("source_updated_at").notNull().default(0),
+  updatedAt: integer("updated_at").notNull(),
+});

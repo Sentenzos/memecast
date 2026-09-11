@@ -1,6 +1,41 @@
 name: memecast
 
 services:
+  mediamtx:
+    image: bluenviron/mediamtx:1.21.0
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      MTX_AUTHINTERNALUSERS_0_USER: ${BROADCAST_PUBLISH_USER}
+      MTX_AUTHINTERNALUSERS_0_PASS: ${BROADCAST_PUBLISH_PASSWORD}
+      MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_ACTION: publish
+      MTX_AUTHINTERNALUSERS_0_PERMISSIONS_0_PATH: "~^radio/[a-z0-9_-]{3,40}$"
+      MTX_AUTHINTERNALUSERS_1_USER: any
+      MTX_AUTHINTERNALUSERS_1_PERMISSIONS_0_ACTION: read
+      MTX_AUTHINTERNALUSERS_1_PERMISSIONS_0_PATH: "~^radio/[a-z0-9_-]{3,40}$"
+      MTX_PATHDEFAULTS_SRTPUBLISHPASSPHRASE: ${BROADCAST_SRT_PASSPHRASE}
+    ports:
+      - "8890:8890/udp"
+    expose:
+      - "8888"
+    volumes:
+      - ./mediamtx.yml:/mediamtx.yml:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   app:
     build:
       context: .
@@ -38,6 +73,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      mediamtx:
+        condition: service_started
     ports:
       - "80:80"
       - "127.0.0.1:8081:8081"
