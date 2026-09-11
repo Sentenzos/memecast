@@ -134,22 +134,32 @@ async function artworkDataUrl(source) {
   if (source === lastArtworkSource) return cachedArtwork;
   lastArtworkSource = source;
   cachedArtwork = null;
-  if (/^data:image\/(jpeg|png|webp);base64,/i.test(source) && source.length < 180 * 1024) return (cachedArtwork = source);
-  const compactBase64 = source.replace(/\s+/g, "");
-  if (compactBase64.length >= 16 && compactBase64.length < 180 * 1024 && /^[a-z0-9+/]+={0,2}$/i.test(compactBase64)) {
-    const bytes = Buffer.from(compactBase64, "base64");
-    const mimeType = imageMimeType(bytes);
-    if (mimeType && bytes.byteLength <= 130 * 1024) return (cachedArtwork = `data:${mimeType};base64,${compactBase64}`);
+  let bytes = null;
+  let mimeType = null;
+  const dataUrl = source.match(/^data:image\/(?:jpeg|jpg|png|webp);base64,([a-z0-9+/=\s]+)$/i);
+  const compactBase64 = (dataUrl?.[1] ?? source).replace(/\s+/g, "");
+  if (compactBase64.length >= 16 && compactBase64.length <= 6 * 1024 * 1024 && /^[a-z0-9+/]+={0,2}$/i.test(compactBase64)) {
+    bytes = Buffer.from(compactBase64, "base64");
+    mimeType = imageMimeType(bytes);
   }
   try {
-    const parsed = new URL(source);
-    if (!new Set(["127.0.0.1", "localhost", "[::1]"]).has(parsed.hostname)) return null;
-    const response = await fetch(parsed, { signal: AbortSignal.timeout(1_500) });
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    if (!/^image\/(jpeg|png|webp)/i.test(contentType)) return null;
-    const bytes = new Uint8Array(await response.arrayBuffer());
-    if (bytes.byteLength > 130 * 1024) return null;
-    cachedArtwork = `data:${contentType.split(";")[0]};base64,${Buffer.from(bytes).toString("base64")}`;
+    if (!bytes) {
+      const parsed = new URL(source);
+      if (!new Set(["127.0.0.1", "localhost", "[::1]"]).has(parsed.hostname)) return null;
+      const response = await fetch(parsed, { signal: AbortSignal.timeout(1_500) });
+      const contentLength = Number(response.headers.get("content-length") || 0);
+      if (contentLength > 4 * 1024 * 1024) return null;
+      bytes = Buffer.from(await response.arrayBuffer());
+      if (bytes.byteLength > 4 * 1024 * 1024) return null;
+      mimeType = imageMimeType(bytes);
+    }
+    if (!mimeType || !bytes?.length) return null;
+    if (bytes.byteLength > 130 * 1024) {
+      bytes = await compressArtwork(bytes, config.ffmpegPath || "ffmpeg");
+      mimeType = bytes ? "image/jpeg" : null;
+    }
+    if (!mimeType || !bytes || bytes.byteLength > 130 * 1024) return null;
+    cachedArtwork = `data:${mimeType};base64,${bytes.toString("base64")}`;
     return cachedArtwork;
   } catch { return null; }
 }
@@ -159,6 +169,41 @@ function imageMimeType(bytes) {
   if (bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
   if (bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP") return "image/webp";
   return null;
+}
+
+function compressArtwork(bytes, ffmpegPath) {
+  return new Promise((resolve) => {
+    const child = spawn(ffmpegPath || "ffmpeg", [
+      "-hide_banner", "-loglevel", "error", "-i", "pipe:0",
+      "-vf", "scale=384:384:force_original_aspect_ratio=decrease",
+      "-frames:v", "1", "-an", "-c:v", "mjpeg", "-q:v", "5",
+      "-f", "image2pipe", "pipe:1",
+    ], { windowsHide: true, stdio: ["pipe", "pipe", "ignore"] });
+    const chunks = [];
+    let outputSize = 0;
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(null);
+    }, 5_000);
+    child.stdout.on("data", (chunk) => {
+      outputSize += chunk.length;
+      if (outputSize > 150 * 1024) {
+        child.kill("SIGKILL");
+        finish(null);
+      } else chunks.push(chunk);
+    });
+    child.once("error", () => finish(null));
+    child.once("exit", (code) => finish(code === 0 ? Buffer.concat(chunks) : null));
+    child.stdin.on("error", () => undefined);
+    child.stdin.end(bytes);
+  });
 }
 
 async function listAudioDevices(ffmpegPath) {

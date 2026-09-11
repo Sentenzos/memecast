@@ -85,4 +85,5 @@ test("shows a live music player backed by the broadcast API", async () => {
   assert.match(broadcasterSource, /redactFfmpegLog/);
   assert.match(broadcasterSource, /compactBase64/);
   assert.match(broadcasterSource, /imageMimeType/);
+  assert.match(broadcasterSource, /compressArtwork/);
 });
