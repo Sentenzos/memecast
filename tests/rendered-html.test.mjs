@@ -71,10 +71,14 @@ test("shows a live music player backed by the broadcast API", async () => {
   const channelSource = await readFile(new URL("../app/PublicChannel.tsx", import.meta.url), "utf8");
   const playerSource = await readFile(new URL("../app/MusicBroadcastPlayer.tsx", import.meta.url), "utf8");
   const dashboardSource = await readFile(new URL("../app/dashboard/DashboardClient.tsx", import.meta.url), "utf8");
+  const relayConfig = await readFile(new URL("../mediamtx.yml", import.meta.url), "utf8");
+  const broadcasterSource = await readFile(new URL("../broadcaster/app.mjs", import.meta.url), "utf8");
   assert.match(channelSource, /<MusicBroadcastPlayer slug=\{slug\}/);
   assert.match(playerSource, /api\/broadcast-state/);
   assert.match(playerSource, /new Hls/);
   assert.match(playerSource, /broadcast\.hlsUrl/);
   assert.match(dashboardSource, /MemeCast Broadcaster/);
   assert.match(dashboardSource, /Токен метаданных/);
+  assert.ok(Number(relayConfig.match(/^hlsSegmentCount:\s*(\d+)/m)?.[1]) >= 7);
+  assert.match(broadcasterSource, /redactFfmpegLog/);
 });

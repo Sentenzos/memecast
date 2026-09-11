@@ -62,7 +62,7 @@ async function startBroadcast() {
   state = { running: true, message: "Подключаем аудиопоток к MemeCast…", ffmpegLog: "", startedAt: Date.now() };
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => {
-    state.ffmpegLog = `${state.ffmpegLog}${chunk}`.slice(-4000);
+    state.ffmpegLog = redactFfmpegLog(`${state.ffmpegLog}${chunk}`).slice(-4000);
     state.message = /error|failed|unable/i.test(chunk) ? "FFmpeg сообщил об ошибке — откройте журнал ниже" : "Аудиопоток отправляется на VPS";
   });
   child.once("error", (error) => {
@@ -211,6 +211,12 @@ function isLocalWrite(request) {
 function json(response, status, payload) {
   response.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
   response.end(JSON.stringify(payload));
+}
+
+function redactFfmpegLog(value) {
+  return String(value)
+    .replace(/(streamid=)[^&\s]+/gi, "$1[скрыто]")
+    .replace(/([?&]passphrase=)[^&\s]+/gi, "$1[скрыто]");
 }
 
 function serveFile(pathname, response) {
