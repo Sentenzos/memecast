@@ -34,7 +34,11 @@
   }
 
   handle /radio/* {
-    reverse_proxy mediamtx:8888
+    reverse_proxy mediamtx:8888 {
+      # Listening is public. Never trigger a browser Basic Auth dialog if
+      # the upstream stream is unavailable or its auth config regresses.
+      header_down -WWW-Authenticate
+    }
   }
 
   handle {
@@ -68,7 +72,9 @@
   }
 
   handle /radio/* {
-    reverse_proxy mediamtx:8888
+    reverse_proxy mediamtx:8888 {
+      header_down -WWW-Authenticate
+    }
   }
 
   handle {

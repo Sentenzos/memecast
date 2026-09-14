@@ -5,6 +5,24 @@ playback: false
 api: false
 metrics: false
 pprof: false
+authMethod: internal
+authInternalUsers:
+  # Compose replaces these disabled placeholders with the Broadcaster
+  # credentials. The non-matching path keeps this file safe on its own.
+  - user: disabled
+    pass: disabled
+    ips: []
+    permissions:
+      - action: publish
+        path: "~^$"
+  # HLS playback is public. Port 8888 is not published by Docker and is
+  # reachable by viewers only through Caddy's /radio/* reverse proxy.
+  - user: any
+    pass:
+    ips: []
+    permissions:
+      - action: read
+        path: "~^radio/[a-z0-9_-]{3,40}$"
 webrtc: false
 moq: false
 srt: true
